@@ -9,6 +9,7 @@ import { connectDB } from "./lib/db.js";
 
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
+import friendRoutes from "./routes/friend.route.js";
 
 import { app, server } from "./lib/socket.js";
 
@@ -36,6 +37,7 @@ app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/friends", friendRoutes);
 
 if (process.env.NODE_ENV === "production") {
   // On Render, the backend is in a subdirectory, so we need to go up to find frontend
