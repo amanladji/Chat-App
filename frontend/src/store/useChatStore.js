@@ -1,3 +1,4 @@
+
 import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
@@ -9,6 +10,9 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  // --- NEW STATE FOR STATS ---
+  stats: null,
+  isStatsLoading: false,
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -33,6 +37,7 @@ export const useChatStore = create((set, get) => ({
       set({ isMessagesLoading: false });
     }
   },
+
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
@@ -40,6 +45,19 @@ export const useChatStore = create((set, get) => ({
       set({ messages: [...messages, res.data] });
     } catch (error) {
       toast.error(error.response.data.message);
+    }
+  },
+
+  // --- NEW ACTION FOR STATS ---
+  getSentimentStats: async (userId) => {
+    set({ isStatsLoading: true, stats: null });
+    try {
+      const res = await axiosInstance.get(`/messages/stats/${userId}`);
+      set({ stats: res.data });
+    } catch (error) {
+      toast.error(error.response.data.message);
+    } finally {
+      set({ isStatsLoading: false });
     }
   },
 
