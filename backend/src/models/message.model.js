@@ -21,9 +21,13 @@ const messageSchema = new mongoose.Schema(
     },
     sentiment: {
       type: String,
-      // Add "HELP" to the list of allowed values
-      enum: ["POSITIVE", "NEGATIVE", "NEUTRAL", "HELP"],
+      // Remove "HELP" from the enum since we removed help sentiment analysis
+      enum: ["POSITIVE", "NEGATIVE", "NEUTRAL"],
     },
+    deletedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
   },
   { timestamps: true }
 );
