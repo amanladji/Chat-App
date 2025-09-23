@@ -599,16 +599,16 @@ export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
     const myId = req.user._id;
-    
+
     // Find messages between the two users, excluding messages deleted by current user
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-      deletedBy: { $ne: myId } // Exclude messages deleted by current user
+      deletedBy: { $ne: myId }, // Exclude messages deleted by current user
     });
-    
+
     res.status(200).json(messages);
   } catch (error) {
     console.log("Error in getMessages controller: ", error.message);
@@ -720,7 +720,9 @@ export const deleteMessage = async (req, res) => {
     const isReceiver = message.receiverId.equals(userId);
 
     if (!isSender && !isReceiver) {
-      return res.status(403).json({ error: "Not authorized to delete this message" });
+      return res
+        .status(403)
+        .json({ error: "Not authorized to delete this message" });
     }
 
     // Check if user has already deleted this message
@@ -745,7 +747,7 @@ export const deleteMessage = async (req, res) => {
     const deletionData = {
       messageId,
       deletedBy: userId,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     if (senderSocketId) {
@@ -755,10 +757,10 @@ export const deleteMessage = async (req, res) => {
       io.to(receiverSocketId).emit("messageDeleted", deletionData);
     }
 
-    res.status(200).json({ 
-      message: "Message deleted successfully", 
+    res.status(200).json({
+      message: "Message deleted successfully",
       messageId,
-      deletedBy: userId 
+      deletedBy: userId,
     });
   } catch (error) {
     console.log("Error in deleteMessage controller: ", error.message);

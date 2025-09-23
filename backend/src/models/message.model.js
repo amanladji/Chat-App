@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
@@ -24,10 +23,12 @@ const messageSchema = new mongoose.Schema(
       // Remove "HELP" from the enum since we removed help sentiment analysis
       enum: ["POSITIVE", "NEGATIVE", "NEUTRAL"],
     },
-    deletedBy: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    }],
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
