@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
@@ -17,7 +16,8 @@ export const useChatStore = create((set, get) => ({
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
-      const res = await axiosInstance.get("/messages/users");
+      // Get friends instead of all users
+      const res = await axiosInstance.get("/friends");
       set({ users: res.data });
     } catch (error) {
       toast.error(error.response.data.message);
@@ -41,10 +41,26 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+      const res = await axiosInstance.post(
+        `/messages/send/${selectedUser._id}`,
+        messageData
+      );
       set({ messages: [...messages, res.data] });
     } catch (error) {
       toast.error(error.response.data.message);
+    }
+  },
+
+  deleteMessage: async (messageId) => {
+    try {
+      await axiosInstance.delete(`/messages/${messageId}`);
+      // Remove the message from the local state immediately
+      set({
+        messages: get().messages.filter((message) => message._id !== messageId),
+      });
+      toast.success("Message deleted successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete message");
     }
   },
 
@@ -68,11 +84,21 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
 
     socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
+      const isMessageSentFromSelectedUser =
+        newMessage.senderId === selectedUser._id;
       if (!isMessageSentFromSelectedUser) return;
 
       set({
         messages: [...get().messages, newMessage],
+      });
+    });
+
+    // Subscribe to message deletion events
+    socket.on("messageDeleted", (deletionData) => {
+      const { messageId } = deletionData;
+      // Remove the deleted message from the local state
+      set({
+        messages: get().messages.filter((message) => message._id !== messageId),
       });
     });
   },
@@ -80,6 +106,7 @@ export const useChatStore = create((set, get) => ({
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
+    socket.off("messageDeleted"); // Unsubscribe from deletion events
   },
 
   setSelectedUser: (selectedUser) => set({ selectedUser }),
