@@ -23,5 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-.env
-realtime-chat-app-472214-ac22caca0767.json
+# .env
+# realtime-chat-app-472214-ac22caca0767.json
