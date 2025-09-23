@@ -1,6 +1,3 @@
-
-
-
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef, useState } from "react";
 import ChatHeader from "./ChatHeader";
@@ -50,14 +47,14 @@ const ChatContainer = () => {
     x: 0,
     y: 0,
     messageId: null,
-    messageText: ''
+    messageText: "",
   });
 
   // --- NEW STATE FOR DELETE CONFIRMATION ---
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     messageId: null,
-    messagePreview: ''
+    messagePreview: "",
   });
 
   // --- LONG PRESS STATE ---
@@ -66,7 +63,7 @@ const ChatContainer = () => {
   // Handle message deletion
   const handleDeleteMessage = async (messageId) => {
     await deleteMessage(messageId);
-    setDeleteModal({ isOpen: false, messageId: null, messagePreview: '' });
+    setDeleteModal({ isOpen: false, messageId: null, messagePreview: "" });
   };
 
   // Handle right-click context menu
@@ -77,7 +74,7 @@ const ChatContainer = () => {
       x: e.clientX,
       y: e.clientY,
       messageId: message._id,
-      messageText: message.text || 'Image message'
+      messageText: message.text || "Image message",
     });
   };
 
@@ -95,7 +92,7 @@ const ChatContainer = () => {
         x: window.innerWidth / 2 - 60, // Center horizontally
         y: window.innerHeight / 2 - 50, // Center vertically
         messageId: message._id,
-        messageText: message.text || 'Image message'
+        messageText: message.text || "Image message",
       });
       // Clear timer after showing context menu
       setLongPressTimer(null);
@@ -121,7 +118,13 @@ const ChatContainer = () => {
 
   // Close context menu
   const closeContextMenu = () => {
-    setContextMenu({ visible: false, x: 0, y: 0, messageId: null, messageText: '' });
+    setContextMenu({
+      visible: false,
+      x: 0,
+      y: 0,
+      messageId: null,
+      messageText: "",
+    });
   };
 
   // Show delete confirmation
@@ -129,7 +132,7 @@ const ChatContainer = () => {
     setDeleteModal({
       isOpen: true,
       messageId,
-      messagePreview: messageText
+      messagePreview: messageText,
     });
     closeContextMenu();
   };
@@ -138,7 +141,12 @@ const ChatContainer = () => {
     getMessages(selectedUser._id);
     subscribeToMessages();
     return () => unsubscribeFromMessages();
-  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+  }, [
+    selectedUser._id,
+    getMessages,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+  ]);
 
   useEffect(() => {
     if (messageEndRef.current && messages) {
@@ -158,7 +166,7 @@ const ChatContainer = () => {
   if (isMessagesLoading) {
     // ... (no changes here)
     return (
-      <div className='flex-1 flex flex-col overflow-auto'>
+      <div className="flex-1 flex flex-col overflow-auto">
         <ChatHeader />
         <MessageSkeleton />
         <MessageInput />
@@ -167,35 +175,39 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className='flex-1 flex flex-col overflow-auto'>
+    <div className="flex-1 flex flex-col overflow-auto">
       <ChatHeader onOpenStats={() => setShowStatsModal(true)} />
 
-      <div className='flex-1 overflow-y-auto p-4 space-y-4'>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
             key={message._id}
-            className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
+            className={`chat ${
+              message.senderId === authUser._id ? "chat-end" : "chat-start"
+            }`}
             ref={messageEndRef}
           >
-            <div className=' chat-image avatar'>
-              <div className='size-10 rounded-full border'>
+            <div className=" chat-image avatar">
+              <div className="size-10 rounded-full border">
                 <img
                   src={
                     message.senderId === authUser._id
                       ? authUser.profilePic || "/avatar.png"
                       : selectedUser.profilePic || "/avatar.png"
                   }
-                  alt='profile pic'
+                  alt="profile pic"
                 />
               </div>
             </div>
-            <div className='chat-header mb-1'>
-              <time className='text-xs opacity-50 ml-1'>
+            <div className="chat-header mb-1">
+              <time className="text-xs opacity-50 ml-1">
                 {formatMessageTime(message.createdAt)}
               </time>
             </div>
             <div
-              className={`chat-bubble flex flex-col ${getSentimentColorClass(message.sentiment)} cursor-pointer select-none`}
+              className={`chat-bubble flex flex-col ${getSentimentColorClass(
+                message.sentiment
+              )} cursor-pointer select-none`}
               onContextMenu={(e) => handleRightClick(e, message)}
               onMouseDown={(e) => {
                 // Only trigger long press on left mouse button
@@ -220,13 +232,13 @@ const ChatContainer = () => {
               onTouchEnd={(e) => handleLongPressEnd(e)}
               onTouchCancel={(e) => handleLongPressEnd(e)}
               onDragStart={(e) => e.preventDefault()} // Prevent drag during long press
-              style={{ userSelect: 'none' }} // Prevent text selection during long press
+              style={{ userSelect: "none" }} // Prevent text selection during long press
             >
               {message.image && (
                 <img
                   src={message.image}
-                  alt='Attachment'
-                  className='sm:max-w-[200px] rounded-md mb-2 cursor-pointer hover:opacity-80 transition-opacity'
+                  alt="Attachment"
+                  className="sm:max-w-[200px] rounded-md mb-2 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => setSelectedImage(message.image)}
                 />
               )}
@@ -240,17 +252,17 @@ const ChatContainer = () => {
 
       {selectedImage && (
         <div
-          className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75'
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
           onClick={() => setSelectedImage(null)}
         >
           <img
             src={selectedImage}
-            alt='Full screen attachment'
-            className='max-w-[90vw] max-h-[90vh] object-contain'
+            alt="Full screen attachment"
+            className="max-w-[90vw] max-h-[90vh] object-contain"
             onClick={(e) => e.stopPropagation()}
           />
           <button
-            className='absolute top-4 right-4 text-white text-3xl font-bold'
+            className="absolute top-4 right-4 text-white text-3xl font-bold"
             onClick={() => setSelectedImage(null)}
           >
             &times;
@@ -259,7 +271,9 @@ const ChatContainer = () => {
       )}
 
       {/* --- NEW STATS MODAL RENDER --- */}
-      {showStatsModal && <SentimentStats onClose={() => setShowStatsModal(false)} />}
+      {showStatsModal && (
+        <SentimentStats onClose={() => setShowStatsModal(false)} />
+      )}
 
       {/* Context Menu */}
       <MessageContextMenu
@@ -267,13 +281,17 @@ const ChatContainer = () => {
         y={contextMenu.y}
         isVisible={contextMenu.visible}
         onClose={closeContextMenu}
-        onDelete={() => showDeleteConfirmation(contextMenu.messageId, contextMenu.messageText)}
+        onDelete={() =>
+          showDeleteConfirmation(contextMenu.messageId, contextMenu.messageText)
+        }
       />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, messageId: null, messagePreview: '' })}
+        onClose={() =>
+          setDeleteModal({ isOpen: false, messageId: null, messagePreview: "" })
+        }
         onConfirm={() => handleDeleteMessage(deleteModal.messageId)}
         messagePreview={deleteModal.messagePreview}
       />

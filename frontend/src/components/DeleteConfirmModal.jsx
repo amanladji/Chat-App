@@ -8,11 +8,12 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, messagePreview }) => {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Delete Message
           </h3>
-          
+
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Are you sure you want to delete this message? This action cannot be undone.
+            Are you sure you want to delete this message? This action cannot be
+            undone.
           </p>
-          
+
           {messagePreview && (
             <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 mb-4 max-h-20 overflow-hidden">
               <p className="text-sm text-gray-700 dark:text-gray-300 truncate">
@@ -20,7 +21,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, messagePreview }) => {
               </p>
             </div>
           )}
-          
+
           <div className="flex gap-3 justify-end">
             <button
               className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
