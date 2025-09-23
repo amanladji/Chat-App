@@ -304,6 +304,110 @@ function preprocessKannadaTransliteration(text) {
   return text; // Return original if no Kannada words found
 }
 
+// Function to analyze contextual sentiment patterns
+function analyzeContextualSentiment(text) {
+  const lowerText = text.toLowerCase();
+  
+  // Patterns that should be POSITIVE despite containing negative words
+  const positiveContextPatterns = [
+    // Advice/Care patterns
+    /\b(don't be|dont be|stop being|avoid being)\s+(angry|sad|upset|mad|frustrated|worried|stressed)\b/i,
+    /\b(no need to be|no need to)\s+(angry|sad|upset|worried|stressed)\b/i,
+    /\b(try not to be|try not to)\s+(angry|sad|upset|worried|stressed)\b/i,
+    
+    // Encouragement patterns
+    /\b(hope you're not|hope you are not|hope ur not)\s+(angry|sad|upset|worried|stressed)\b/i,
+    /\b(don't worry|dont worry|no worries|don't stress|dont stress)\b/i,
+    /\b(cheer up|stay positive|be happy|be strong|take care)\b/i,
+    
+    // Negation of negative emotions
+    /\b(not (angry|sad|upset|mad|frustrated|worried|stressed))\b/i,
+    /\b(no longer (angry|sad|upset|mad|frustrated|worried|stressed))\b/i,
+    
+    // Support patterns
+    /\b(i understand you're (angry|sad|upset)|i know you're (angry|sad|upset))\b/i,
+    /\b(it's okay to be (angry|sad|upset)|its okay to be (angry|sad|upset))\b/i
+  ];
+  
+  // Patterns that should be NEUTRAL (questions/concerns) despite containing negative words
+  const neutralContextPatterns = [
+    // Basic casual questions
+    /\b(what are you doing|what r u doing|what ru doing|whatcha doing|wat u doing)\b/i,
+    /\b(where are you|where r u|where ru)\b/i,
+    /\b(how are you|how r u|how ru|how u doing|sup|wassup)\b/i,
+    /\b(what's up|whats up|what up|wats up)\b/i,
+    /\b(when are you|when r u|when ru)\b/i,
+    /\b(who are you|who r u|who ru)\b/i,
+    
+    // Question patterns about emotions
+    /\b(why are you|why r u|why ru)\s+(getting|being|so)\s+(angry|mad|upset|frustrated|sad|worried|stressed)\b/i,
+    /\b(what's wrong|whats wrong|what happened|what's the matter|whats the matter)\b/i,
+    /\b(are you (okay|ok|alright|fine)|r u (okay|ok|alright|fine))\b/i,
+    /\b(is everything (okay|ok|alright|fine))\b/i,
+    /\b(how are you (feeling|doing)|how r u (feeling|doing))\b/i,
+    
+    // Concerned inquiry patterns
+    /\b(you seem (angry|upset|sad|frustrated|worried|stressed))\b/i,
+    /\b(you look (angry|upset|sad|frustrated|worried|stressed))\b/i,
+    /\b(are you (angry|upset|sad|frustrated|worried|stressed))\b/i,
+    /\b(why (so|this) (angry|upset|sad|frustrated|worried|stressed))\b/i,
+    
+    // Observation patterns
+    /\b(i see you're|i can see you're|looks like you're)\s+(angry|upset|sad|frustrated|worried|stressed)\b/i,
+    /\b(seems like you're|it seems you're)\s+(angry|upset|sad|frustrated|worried|stressed)\b/i
+  ];
+  
+  // Patterns that should be NEGATIVE despite containing positive words
+  const negativeContextPatterns = [
+    // Sarcasm patterns
+    /\b(yeah right|oh sure|very funny|how wonderful|so great)\b.*\b(not|obviously|clearly)\b/i,
+    /\b(pretend to be|fake being|acting)\s+(happy|fine|okay|good)\b/i,
+    
+    // Frustrated questions
+    /\b(why should i be|why would i be)\s+(happy|excited|glad|pleased)\b/i,
+    /\b(how can i be|how am i supposed to be)\s+(happy|excited|glad|pleased)\b/i,
+    
+    // Kannada negative patterns (transliterated)
+    /\b(istavilla|istapadaddu|beda|beku illa|kodabedi)\b/i,
+    /\b(mukha nodalu.*istavilla|face.*don't like|face.*hate)\b/i,
+    /\b(nanage beda|nange beda|I don't want|don't want)\b/i,
+    
+    // Hindi negative patterns (transliterated)
+    /\b(pasand nahi|accha nahi|bura lag raha|gussa aa raha)\b/i,
+    /\b(nahi chahiye|mat karo|band karo|chup raho)\b/i,
+    
+    // Mixed language negative patterns
+    /\b(don't like.*face|hate.*face|can't stand)\b/i,
+    /\b(go away|get lost|leave me alone|shut up)\b/i
+  ];
+  
+  // Check neutral context patterns first (questions/concerns)
+  for (const pattern of neutralContextPatterns) {
+    if (pattern.test(lowerText)) {
+      console.log(`Neutral context detected: "${text}" - Pattern: ${pattern.source}`);
+      return "NEUTRAL";
+    }
+  }
+  
+  // Check positive context patterns
+  for (const pattern of positiveContextPatterns) {
+    if (pattern.test(lowerText)) {
+      console.log(`Positive context detected: "${text}" - Pattern: ${pattern.source}`);
+      return "POSITIVE";
+    }
+  }
+  
+  // Check negative context patterns
+  for (const pattern of negativeContextPatterns) {
+    if (pattern.test(lowerText)) {
+      console.log(`Negative context detected: "${text}" - Pattern: ${pattern.source}`);
+      return "NEGATIVE";
+    }
+  }
+  
+  return null; // No contextual override found
+}
+
 async function analyzeMessage(text) {
   if (!text) return null;
 
@@ -473,6 +577,16 @@ async function analyzeMessage(text) {
     }
 
     // Step 4: Perform sentiment analysis on the text (English or translated)
+    
+    // First, check for contextual sentiment patterns
+    const contextualSentiment = analyzeContextualSentiment(textToAnalyze);
+    
+    if (contextualSentiment) {
+      console.log(`Contextual sentiment override: "${textToAnalyze}" -> ${contextualSentiment}`);
+      return contextualSentiment;
+    }
+    
+    // If no contextual override, proceed with Google's sentiment analysis
     const document = {
       content: textToAnalyze,
       type: "PLAIN_TEXT",
@@ -482,7 +596,7 @@ async function analyzeMessage(text) {
     const score = result.documentSentiment.score;
 
     console.log(
-      `Sentiment analysis - Score: ${score} for text: "${textToAnalyze}"`
+      `Google sentiment analysis - Score: ${score} for text: "${textToAnalyze}"`
     );
 
     if (score >= 0.2) return "POSITIVE";
