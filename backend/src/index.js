@@ -1,9 +1,9 @@
-
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 
 import { connectDB } from "./lib/db.js";
 
@@ -18,7 +18,10 @@ const __dirname = path.resolve();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin:
+      process.env.NODE_ENV === "production"
+        ? process.env.CLIENT_URL
+        : "http://localhost:5173",
     credentials: true,
   })
 );
@@ -35,11 +38,22 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "/frontend/dist")));
+  // On Render, the backend is in a subdirectory, so we need to go up to find frontend
+  const frontendPath = path.join(__dirname, "..", "frontend", "dist");
 
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
-  });
+  // Check if the frontend build exists
+  if (fs.existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(frontendPath, "index.html"));
+    });
+  } else {
+    console.warn("Frontend build not found at:", frontendPath);
+    app.get("*", (req, res) => {
+      res.status(404).json({ error: "Frontend build not found" });
+    });
+  }
 }
 
 server.listen(process.env.PORT, () => {
