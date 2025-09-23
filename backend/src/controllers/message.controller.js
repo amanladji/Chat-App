@@ -339,6 +339,14 @@ function analyzeContextualSentiment(text) {
     /\b(when are you|when r u|when ru)\b/i,
     /\b(who are you|who r u|who ru)\b/i,
 
+    // Food/daily life questions
+    /\b(what did you eat|what you ate|what u ate|did you eat|have you eaten)\b/i,
+    /\b(what are you eating|what r u eating|whatcha eating)\b/i,
+    /\b(where did you go|where you went|where u went|did you go)\b/i,
+    /\b(what did you do|what you did|what u did|did you do)\b/i,
+    /\b(how was your day|how was ur day|good day)\b/i,
+    /\b(what time|when did you|have you done|did you finish)\b/i,
+
     // Question patterns about emotions
     /\b(why are you|why r u|why ru)\s+(getting|being|so)\s+(angry|mad|upset|frustrated|sad|worried|stressed)\b/i,
     /\b(what's wrong|whats wrong|what happened|what's the matter|whats the matter)\b/i,
@@ -436,51 +444,7 @@ async function analyzeMessage(text) {
       console.log(`Diacritical marks found, normalized: "${normalizedText}"`);
     }
 
-    // Step 2: Check for help keywords in multiple languages
-    const lowerCaseText = text.toLowerCase();
-    const helpKeywords = [
-      // English help keywords
-      "help",
-      "support",
-      "assistance",
-      "question",
-      "issue",
-      // Hindi help keywords (Devanagari)
-      "मदद",
-      "सहायता",
-      "सहारा",
-      "प्रश्न",
-      "समस्या",
-      // Kannada help keywords (Kannada script)
-      "ಸಹಾಯ",
-      "ಬೆಂಬಲ",
-      "ಪ್ರಶ್ನೆ",
-      "ಸಮಸ್ಯೆ",
-      // Hinglish help keywords (Hindi in Roman script)
-      "madad",
-      "sahayata",
-      "sahaayata",
-      "prashna",
-      "samasya",
-      "help karo",
-      "help chahiye",
-      // Kannada transliterated help keywords (Kannada in Roman script)
-      "sahaya",
-      "sahayata",
-      "prashne",
-      "samasye",
-      "help madi",
-      "help beku",
-      "sahaaya",
-      "bengaluru",
-    ];
-
-    if (helpKeywords.some((keyword) => lowerCaseText.includes(keyword))) {
-      console.log(`Help keyword detected in message: "${text}"`);
-      return "HELP";
-    }
-
-    // Step 3: Enhanced translation logic
+    // Step 2: Enhanced translation logic
     const needsTranslation =
       detectedLanguage !== "en" || hasIndicPatterns || normalizedText !== text;
 
@@ -582,7 +546,7 @@ async function analyzeMessage(text) {
       console.log(`No translation needed for English text: "${text}"`);
     }
 
-    // Step 4: Perform sentiment analysis on the text (English or translated)
+    // Step 3: Perform sentiment analysis on the text (English or translated)
 
     // First, check for contextual sentiment patterns
     const contextualSentiment = analyzeContextualSentiment(textToAnalyze);
@@ -635,12 +599,16 @@ export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
     const myId = req.user._id;
+    
+    // Find messages between the two users, excluding messages deleted by current user
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
+      deletedBy: { $ne: myId } // Exclude messages deleted by current user
     });
+    
     res.status(200).json(messages);
   } catch (error) {
     console.log("Error in getMessages controller: ", error.message);
@@ -731,6 +699,69 @@ export const getSentimentStats = async (req, res) => {
     res.status(200).json(formattedStats);
   } catch (error) {
     console.log("Error in getSentimentStats controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+
+    // Find the message
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    // Check if user is authorized to delete (must be sender or receiver)
+    const isSender = message.senderId.equals(userId);
+    const isReceiver = message.receiverId.equals(userId);
+
+    if (!isSender && !isReceiver) {
+      return res.status(403).json({ error: "Not authorized to delete this message" });
+    }
+
+    // Check if user has already deleted this message
+    if (message.deletedBy && message.deletedBy.includes(userId)) {
+      return res.status(400).json({ error: "Message already deleted by you" });
+    }
+
+    // Add user to deletedBy array (soft delete)
+    await Message.findByIdAndUpdate(
+      messageId,
+      { $addToSet: { deletedBy: userId } },
+      { new: true }
+    );
+
+    // Get the other user's ID for socket emission
+    const otherUserId = isSender ? message.receiverId : message.senderId;
+
+    // Emit deletion event to both users via socket
+    const senderSocketId = getReceiverSocketId(message.senderId);
+    const receiverSocketId = getReceiverSocketId(message.receiverId);
+
+    const deletionData = {
+      messageId,
+      deletedBy: userId,
+      timestamp: new Date()
+    };
+
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messageDeleted", deletionData);
+    }
+    if (receiverSocketId && receiverSocketId !== senderSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", deletionData);
+    }
+
+    res.status(200).json({ 
+      message: "Message deleted successfully", 
+      messageId,
+      deletedBy: userId 
+    });
+  } catch (error) {
+    console.log("Error in deleteMessage controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
