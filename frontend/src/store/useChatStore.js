@@ -64,6 +64,24 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Bulk delete messages
+  deleteMessages: async (messageIds) => {
+    try {
+      await axiosInstance.delete("/messages/bulk", {
+        data: { messageIds },
+      });
+      // Remove all deleted messages from local state immediately
+      set({
+        messages: get().messages.filter(
+          (message) => !messageIds.includes(message._id)
+        ),
+      });
+      toast.success(`${messageIds.length} message(s) deleted successfully`);
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Failed to delete messages");
+    }
+  },
+
   // --- NEW ACTION FOR STATS ---
   getSentimentStats: async (userId) => {
     set({ isStatsLoading: true, stats: null });

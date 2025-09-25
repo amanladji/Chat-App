@@ -33,6 +33,7 @@ const ChatContainer = () => {
     subscribeToMessages,
     unsubscribeFromMessages,
     deleteMessage, // Add deleteMessage to destructured values
+    deleteMessages, // Add bulk delete function
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -60,10 +61,59 @@ const ChatContainer = () => {
   // --- LONG PRESS STATE ---
   const [longPressTimer, setLongPressTimer] = useState(null);
 
+  // --- MULTI-SELECT STATE ---
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedMessages, setSelectedMessages] = useState(new Set());
+
   // Handle message deletion
   const handleDeleteMessage = async (messageId) => {
     await deleteMessage(messageId);
     setDeleteModal({ isOpen: false, messageId: null, messagePreview: "" });
+  };
+
+  // Handle multi-select message deletion
+  const handleDeleteSelectedMessages = async () => {
+    const messageIds = Array.from(selectedMessages);
+    try {
+      // Use the bulk delete function
+      await deleteMessages(messageIds);
+
+      // Clear selection and exit multi-select mode
+      setSelectedMessages(new Set());
+      setIsMultiSelectMode(false);
+    } catch (error) {
+      console.error("Error deleting selected messages:", error);
+    }
+  };
+
+  // Toggle multi-select mode
+  const toggleMultiSelectMode = () => {
+    setIsMultiSelectMode(!isMultiSelectMode);
+    setSelectedMessages(new Set()); // Clear selections when toggling mode
+  };
+
+  // Toggle message selection
+  const toggleMessageSelection = (messageId) => {
+    setSelectedMessages((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
+  // Select all messages (both sent and received by current user)
+  const selectAllMessages = () => {
+    // Select all messages in the conversation (both sent and received)
+    setSelectedMessages(new Set(messages.map((msg) => msg._id)));
+  };
+
+  // Clear all selections
+  const clearAllSelections = () => {
+    setSelectedMessages(new Set());
   };
 
   // Handle right-click context menu
@@ -140,6 +190,11 @@ const ChatContainer = () => {
   useEffect(() => {
     getMessages(selectedUser._id);
     subscribeToMessages();
+
+    // Clear multi-select state when changing users
+    setIsMultiSelectMode(false);
+    setSelectedMessages(new Set());
+
     return () => unsubscribeFromMessages();
   }, [
     selectedUser._id,
@@ -176,76 +231,157 @@ const ChatContainer = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
-      <ChatHeader onOpenStats={() => setShowStatsModal(true)} />
+      <ChatHeader
+        onOpenStats={() => setShowStatsModal(true)}
+        isMultiSelectMode={isMultiSelectMode}
+        onToggleMultiSelect={toggleMultiSelectMode}
+        selectedMessagesCount={selectedMessages.size}
+        onSelectAll={selectAllMessages}
+        onClearSelections={clearAllSelections}
+        onDeleteSelected={handleDeleteSelectedMessages}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message._id}
-            className={`chat ${
-              message.senderId === authUser._id ? "chat-end" : "chat-start"
-            }`}
-            ref={messageEndRef}
-          >
-            <div className=" chat-image avatar">
-              <div className="size-10 rounded-full border">
-                <img
-                  src={
-                    message.senderId === authUser._id
-                      ? authUser.profilePic || "/avatar.png"
-                      : selectedUser.profilePic || "/avatar.png"
+        {messages.map((message) => {
+          const isMyMessage = message.senderId === authUser._id;
+          const isSelected = selectedMessages.has(message._id);
+
+          return (
+            <div
+              key={message._id}
+              className={`chat ${isMyMessage ? "chat-end" : "chat-start"} ${
+                isMultiSelectMode ? "relative cursor-pointer" : ""
+              } ${
+                isMultiSelectMode && isSelected
+                  ? "bg-primary/5 rounded-lg p-1 -m-1"
+                  : ""
+              } ${
+                isMultiSelectMode
+                  ? "hover:bg-base-200/50 rounded-lg p-1 -m-1 transition-colors"
+                  : ""
+              }`}
+              ref={messageEndRef}
+              onClick={() => {
+                if (isMultiSelectMode) {
+                  toggleMessageSelection(message._id);
+                }
+              }}
+            >
+              {/* Selection checkbox - show for all messages in multi-select mode */}
+              {isMultiSelectMode && (
+                <div
+                  className={`absolute top-1/2 transform -translate-y-1/2 z-10 ${
+                    isMyMessage ? "-left-8" : "-right-8"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      e.stopPropagation(); // Prevent triggering parent click
+                      toggleMessageSelection(message._id);
+                    }}
+                    onClick={(e) => e.stopPropagation()} // Also prevent click bubbling
+                  />
+                </div>
+              )}
+
+              <div className="chat-image avatar">
+                <div className="size-10 rounded-full border">
+                  <img
+                    src={
+                      isMyMessage
+                        ? authUser.profilePic || "/avatar.png"
+                        : selectedUser.profilePic || "/avatar.png"
+                    }
+                    alt="profile pic"
+                  />
+                </div>
+              </div>
+              <div className="chat-header mb-1">
+                <time className="text-xs opacity-50 ml-1">
+                  {formatMessageTime(message.createdAt)}
+                </time>
+              </div>
+              <div
+                className={`chat-bubble flex flex-col ${getSentimentColorClass(
+                  message.sentiment
+                )} cursor-pointer select-none ${
+                  isMultiSelectMode && isSelected
+                    ? "ring-2 ring-primary ring-opacity-50"
+                    : ""
+                } ${
+                  isMultiSelectMode
+                    ? "hover:ring-1 hover:ring-primary hover:ring-opacity-30"
+                    : ""
+                }`}
+                onContextMenu={(e) => {
+                  if (!isMultiSelectMode) {
+                    handleRightClick(e, message);
                   }
-                  alt="profile pic"
-                />
+                }}
+                onMouseDown={(e) => {
+                  if (!isMultiSelectMode) {
+                    // Only trigger long press on left mouse button
+                    if (e.button === 0) {
+                      handleLongPressStart(message, e);
+                    }
+                  }
+                }}
+                onMouseUp={(e) => {
+                  if (!isMultiSelectMode) {
+                    // Only handle left mouse button
+                    if (e.button === 0) {
+                      handleLongPressEnd(e);
+                    }
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (!isMultiSelectMode) {
+                    // Only cancel long press if context menu is not visible
+                    if (longPressTimer && !contextMenu.visible) {
+                      clearTimeout(longPressTimer);
+                      setLongPressTimer(null);
+                    }
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (!isMultiSelectMode) {
+                    handleLongPressStart(message, e);
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  if (!isMultiSelectMode) {
+                    handleLongPressEnd(e);
+                  }
+                }}
+                onTouchCancel={(e) => {
+                  if (!isMultiSelectMode) {
+                    handleLongPressEnd(e);
+                  }
+                }}
+                onDragStart={(e) => e.preventDefault()} // Prevent drag during long press
+                style={{ userSelect: "none" }} // Prevent text selection during long press
+              >
+                {message.image && (
+                  <img
+                    src={message.image}
+                    alt="Attachment"
+                    className="sm:max-w-[200px] rounded-md mb-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering message selection
+                      if (!isMultiSelectMode) {
+                        setSelectedImage(message.image);
+                      }
+                    }}
+                  />
+                )}
+                {message.text && <p>{message.text}</p>}
               </div>
             </div>
-            <div className="chat-header mb-1">
-              <time className="text-xs opacity-50 ml-1">
-                {formatMessageTime(message.createdAt)}
-              </time>
-            </div>
-            <div
-              className={`chat-bubble flex flex-col ${getSentimentColorClass(
-                message.sentiment
-              )} cursor-pointer select-none`}
-              onContextMenu={(e) => handleRightClick(e, message)}
-              onMouseDown={(e) => {
-                // Only trigger long press on left mouse button
-                if (e.button === 0) {
-                  handleLongPressStart(message, e);
-                }
-              }}
-              onMouseUp={(e) => {
-                // Only handle left mouse button
-                if (e.button === 0) {
-                  handleLongPressEnd(e);
-                }
-              }}
-              onMouseLeave={() => {
-                // Only cancel long press if context menu is not visible
-                if (longPressTimer && !contextMenu.visible) {
-                  clearTimeout(longPressTimer);
-                  setLongPressTimer(null);
-                }
-              }}
-              onTouchStart={(e) => handleLongPressStart(message, e)}
-              onTouchEnd={(e) => handleLongPressEnd(e)}
-              onTouchCancel={(e) => handleLongPressEnd(e)}
-              onDragStart={(e) => e.preventDefault()} // Prevent drag during long press
-              style={{ userSelect: "none" }} // Prevent text selection during long press
-            >
-              {message.image && (
-                <img
-                  src={message.image}
-                  alt="Attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => setSelectedImage(message.image)}
-                />
-              )}
-              {message.text && <p>{message.text}</p>}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <MessageInput />
