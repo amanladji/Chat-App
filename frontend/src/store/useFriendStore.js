@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
+import { useAuthStore } from "./useAuthStore";
 
 export const useFriendStore = create((set, get) => ({
   friends: [],
@@ -58,6 +59,11 @@ export const useFriendStore = create((set, get) => ({
       // Refresh friends and pending requests
       get().getFriends();
       get().getPendingRequests();
+
+      // Also refresh the chat store to show the new friend in sidebar
+      import("./useChatStore.js").then(({ useChatStore }) => {
+        useChatStore.getState().getUsers();
+      });
     } catch (error) {
       toast.error(
         error.response?.data?.error || "Failed to accept friend request"
@@ -109,6 +115,11 @@ export const useFriendStore = create((set, get) => ({
 
       // Refresh friends list
       get().getFriends();
+
+      // Also refresh the chat store to update sidebar
+      import("./useChatStore.js").then(({ useChatStore }) => {
+        useChatStore.getState().getUsers();
+      });
     } catch (error) {
       toast.error(error.response?.data?.error || "Failed to remove friend");
     }
@@ -117,5 +128,52 @@ export const useFriendStore = create((set, get) => ({
   // Clear search results
   clearSearchResults: () => {
     set({ searchResults: [] });
+  },
+
+  // Subscribe to friend-related socket events
+  subscribeToFriendEvents: () => {
+    const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
+    // Listen for incoming friend requests
+    socket.on("friendRequest", (data) => {
+      toast.success(`${data.requester.fullName} sent you a friend request!`);
+      // Refresh pending requests to show the new request
+      get().getPendingRequests();
+    });
+
+    // Listen for friend request acceptance
+    socket.on("friendRequestAccepted", (data) => {
+      toast.success(`${data.friend.fullName} accepted your friend request!`);
+      // Refresh friends list to show the new friend
+      get().getFriends();
+
+      // Also refresh the chat store to show the new friend in sidebar
+      import("./useChatStore.js").then(({ useChatStore }) => {
+        useChatStore.getState().getUsers();
+      });
+    });
+
+    // Listen for friend removal
+    socket.on("friendRemoved", () => {
+      toast.info("A friend has removed you from their friend list");
+      // Refresh friends list
+      get().getFriends();
+
+      // Also refresh the chat store to update sidebar
+      import("./useChatStore.js").then(({ useChatStore }) => {
+        useChatStore.getState().getUsers();
+      });
+    });
+  },
+
+  // Unsubscribe from friend-related socket events
+  unsubscribeFromFriendEvents: () => {
+    const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
+    socket.off("friendRequest");
+    socket.off("friendRequestAccepted");
+    socket.off("friendRemoved");
   },
 }));
