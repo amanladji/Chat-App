@@ -51,24 +51,28 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  deleteMessage: async (messageId) => {
+  deleteMessage: async (messageId, deleteType = "forMe") => {
     try {
-      await axiosInstance.delete(`/messages/${messageId}`);
+      await axiosInstance.delete(`/messages/${messageId}`, {
+        data: { deleteType },
+      });
       // Remove the message from the local state immediately
       set({
         messages: get().messages.filter((message) => message._id !== messageId),
       });
-      toast.success("Message deleted successfully");
+      const deleteText =
+        deleteType === "forEveryone" ? "for everyone" : "for you";
+      toast.success(`Message deleted ${deleteText}`);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete message");
+      toast.error(error.response?.data?.error || "Failed to delete message");
     }
   },
 
   // Bulk delete messages
-  deleteMessages: async (messageIds) => {
+  deleteMessages: async (messageIds, deleteType = "forMe") => {
     try {
       await axiosInstance.delete("/messages/bulk", {
-        data: { messageIds },
+        data: { messageIds, deleteType },
       });
       // Remove all deleted messages from local state immediately
       set({
@@ -76,7 +80,9 @@ export const useChatStore = create((set, get) => ({
           (message) => !messageIds.includes(message._id)
         ),
       });
-      toast.success(`${messageIds.length} message(s) deleted successfully`);
+      const deleteText =
+        deleteType === "forEveryone" ? "for everyone" : "for you";
+      toast.success(`${messageIds.length} message(s) deleted ${deleteText}`);
     } catch (error) {
       toast.error(error.response?.data?.error || "Failed to delete messages");
     }

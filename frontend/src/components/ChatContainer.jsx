@@ -8,6 +8,7 @@ import { formatMessageTime } from "../lib/utils";
 import SentimentStats from "./SentimentStats"; // Import the new component
 import MessageContextMenu from "./MessageContextMenu";
 import DeleteConfirmModal from "./DeleteConfirmModal";
+import BulkDeleteConfirmModal from "./BulkDeleteConfirmModal";
 
 // Helper function to get the correct color class
 const getSentimentColorClass = (sentiment) => {
@@ -56,6 +57,8 @@ const ChatContainer = () => {
     isOpen: false,
     messageId: null,
     messagePreview: "",
+    messageData: null,
+    isDeleting: false,
   });
 
   // --- LONG PRESS STATE ---
@@ -65,25 +68,82 @@ const ChatContainer = () => {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState(new Set());
 
-  // Handle message deletion
-  const handleDeleteMessage = async (messageId) => {
-    await deleteMessage(messageId);
-    setDeleteModal({ isOpen: false, messageId: null, messagePreview: "" });
+  // --- BULK DELETE CONFIRMATION STATE ---
+  const [bulkDeleteModal, setBulkDeleteModal] = useState({
+    isOpen: false,
+    selectedCount: 0,
+    messageIds: [],
+  });
+
+  // Handle message deletion with type
+  const handleDeleteMessage = async (deleteType) => {
+    setDeleteModal((prev) => ({ ...prev, isDeleting: true }));
+
+    try {
+      await deleteMessage(deleteModal.messageId, deleteType);
+      setDeleteModal({
+        isOpen: false,
+        messageId: null,
+        messagePreview: "",
+        messageData: null,
+        isDeleting: false,
+      });
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      setDeleteModal((prev) => ({ ...prev, isDeleting: false }));
+    }
   };
 
-  // Handle multi-select message deletion
-  const handleDeleteSelectedMessages = async () => {
+  // Handle multi-select message deletion - show confirmation
+  const handleDeleteSelectedMessages = () => {
     const messageIds = Array.from(selectedMessages);
-    try {
-      // Use the bulk delete function
-      await deleteMessages(messageIds);
+    // Get the full message objects for the selected message IDs
+    const selectedMessageObjects = messages.filter((msg) =>
+      messageIds.includes(msg._id)
+    );
 
-      // Clear selection and exit multi-select mode
+    setBulkDeleteModal({
+      isOpen: true,
+      selectedCount: messageIds.length,
+      messageIds: messageIds,
+      selectedMessages: selectedMessageObjects,
+      isDeleting: false,
+    });
+  };
+
+  // Handle confirmed bulk delete with deletion type
+  const handleConfirmedBulkDelete = async (deleteType) => {
+    setBulkDeleteModal((prev) => ({ ...prev, isDeleting: true }));
+
+    try {
+      // Use the bulk delete function with the stored message IDs and deletion type
+      await deleteMessages(bulkDeleteModal.messageIds, deleteType);
+
+      // Clear selection, exit multi-select mode, and close modal
       setSelectedMessages(new Set());
       setIsMultiSelectMode(false);
+      setBulkDeleteModal({
+        isOpen: false,
+        selectedCount: 0,
+        messageIds: [],
+        selectedMessages: [],
+        isDeleting: false,
+      });
     } catch (error) {
       console.error("Error deleting selected messages:", error);
+      setBulkDeleteModal((prev) => ({ ...prev, isDeleting: false }));
     }
+  };
+
+  // Handle bulk delete cancellation
+  const handleCancelBulkDelete = () => {
+    setBulkDeleteModal({
+      isOpen: false,
+      selectedCount: 0,
+      messageIds: [],
+      selectedMessages: [],
+      isDeleting: false,
+    });
   };
 
   // Toggle multi-select mode
@@ -179,10 +239,15 @@ const ChatContainer = () => {
 
   // Show delete confirmation
   const showDeleteConfirmation = (messageId, messageText) => {
+    // Find the full message object
+    const messageData = messages.find((msg) => msg._id === messageId);
+
     setDeleteModal({
       isOpen: true,
       messageId,
       messagePreview: messageText,
+      messageData: messageData,
+      isDeleting: false,
     });
     closeContextMenu();
   };
@@ -242,6 +307,34 @@ const ChatContainer = () => {
       />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Multi-select mode indicator */}
+        {isMultiSelectMode && (
+          <div className="sticky top-0 z-30 bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-primary">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="font-medium">
+                Multi-select mode - {selectedMessages.size} message
+                {selectedMessages.size !== 1 ? "s" : ""} selected
+              </span>
+            </div>
+            <div className="text-xs text-base-content/70 mt-1">
+              Click on messages to select/deselect them
+            </div>
+          </div>
+        )}
+
         {messages.map((message) => {
           const isMyMessage = message.senderId === authUser._id;
           const isSelected = selectedMessages.has(message._id);
@@ -253,11 +346,11 @@ const ChatContainer = () => {
                 isMultiSelectMode ? "relative cursor-pointer" : ""
               } ${
                 isMultiSelectMode && isSelected
-                  ? "bg-primary/5 rounded-lg p-1 -m-1"
+                  ? "bg-primary/20 border border-primary/40 rounded-xl p-2 -m-2 shadow-lg transform scale-[1.02] transition-all duration-200"
                   : ""
               } ${
-                isMultiSelectMode
-                  ? "hover:bg-base-200/50 rounded-lg p-1 -m-1 transition-colors"
+                isMultiSelectMode && !isSelected
+                  ? "opacity-50 hover:opacity-75 hover:bg-base-200/30 rounded-xl p-2 -m-2 transition-all duration-200 relative"
                   : ""
               }`}
               ref={messageEndRef}
@@ -271,19 +364,61 @@ const ChatContainer = () => {
               {isMultiSelectMode && (
                 <div
                   className={`absolute top-1/2 transform -translate-y-1/2 z-10 ${
-                    isMyMessage ? "-left-8" : "-right-8"
+                    isMyMessage ? "-left-10" : "-right-10"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-sm"
-                    checked={isSelected}
-                    onChange={(e) => {
-                      e.stopPropagation(); // Prevent triggering parent click
-                      toggleMessageSelection(message._id);
-                    }}
-                    onClick={(e) => e.stopPropagation()} // Also prevent click bubbling
-                  />
+                  <div
+                    className={`p-2 rounded-full transition-all duration-200 ${
+                      isSelected
+                        ? "bg-primary text-primary-content shadow-lg scale-110"
+                        : "bg-base-200 hover:bg-base-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className={`checkbox checkbox-sm border-2 transition-all duration-200 ${
+                        isSelected
+                          ? "checkbox-primary border-primary-content"
+                          : "checkbox-ghost border-base-content/30 hover:border-primary"
+                      }`}
+                      checked={isSelected}
+                      onChange={(e) => {
+                        e.stopPropagation(); // Prevent triggering parent click
+                        toggleMessageSelection(message._id);
+                      }}
+                      onClick={(e) => e.stopPropagation()} // Also prevent click bubbling
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Overlay for non-selected messages in multi-select mode */}
+              {isMultiSelectMode && !isSelected && (
+                <div className="absolute inset-0 bg-base-content/10 rounded-xl pointer-events-none transition-opacity duration-200"></div>
+              )}
+
+              {/* Selection indicator badge for selected messages */}
+              {isMultiSelectMode && isSelected && (
+                <div
+                  className={`absolute -top-2 z-20 ${
+                    isMyMessage ? "-left-2" : "-right-2"
+                  }`}
+                >
+                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                    <svg
+                      className="w-4 h-4 text-primary-content"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
                 </div>
               )}
 
@@ -307,15 +442,15 @@ const ChatContainer = () => {
               <div
                 className={`chat-bubble flex flex-col ${getSentimentColorClass(
                   message.sentiment
-                )} cursor-pointer select-none ${
+                )} cursor-pointer select-none transition-all duration-200 ${
                   isMultiSelectMode && isSelected
-                    ? "ring-2 ring-primary ring-opacity-50"
+                    ? "ring-4 ring-primary ring-opacity-60 shadow-xl transform scale-[1.05] border-2 border-primary/50"
                     : ""
                 } ${
-                  isMultiSelectMode
-                    ? "hover:ring-1 hover:ring-primary hover:ring-opacity-30"
+                  isMultiSelectMode && !isSelected
+                    ? "hover:ring-2 hover:ring-primary/30 hover:shadow-md hover:transform hover:scale-[1.02]"
                     : ""
-                }`}
+                } ${!isMultiSelectMode ? "hover:shadow-sm" : ""}`}
                 onContextMenu={(e) => {
                   if (!isMultiSelectMode) {
                     handleRightClick(e, message);
@@ -426,10 +561,30 @@ const ChatContainer = () => {
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
         onClose={() =>
-          setDeleteModal({ isOpen: false, messageId: null, messagePreview: "" })
+          setDeleteModal({
+            isOpen: false,
+            messageId: null,
+            messagePreview: "",
+            messageData: null,
+            isDeleting: false,
+          })
         }
-        onConfirm={() => handleDeleteMessage(deleteModal.messageId)}
+        onConfirm={handleDeleteMessage}
         messagePreview={deleteModal.messagePreview}
+        messageData={deleteModal.messageData}
+        currentUserId={authUser?._id}
+        isDeleting={deleteModal.isDeleting}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <BulkDeleteConfirmModal
+        isOpen={bulkDeleteModal.isOpen}
+        onClose={handleCancelBulkDelete}
+        onConfirm={handleConfirmedBulkDelete}
+        selectedCount={bulkDeleteModal.selectedCount}
+        isDeleting={bulkDeleteModal.isDeleting}
+        selectedMessages={bulkDeleteModal.selectedMessages}
+        currentUserId={authUser?._id}
       />
     </div>
   );
