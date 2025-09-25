@@ -55,12 +55,6 @@ const Sidebar = () => {
   };
 
   const handleLongPressStart = (e, user) => {
-    // Prevent default behavior that might interfere
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
     const timer = setTimeout(() => {
       const rect = e.currentTarget.getBoundingClientRect();
       setContextMenu({
@@ -71,21 +65,12 @@ const Sidebar = () => {
         },
         friend: user,
       });
-      // Clear timer after showing context menu
-      setLongPressTimer(null);
     }, 500);
     setLongPressTimer(timer);
   };
 
-  const handleLongPressEnd = (e) => {
-    // Prevent default behavior
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    // Only clear the timer if context menu is not visible
-    if (longPressTimer && !contextMenu.isOpen) {
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
     }
@@ -157,30 +142,30 @@ const Sidebar = () => {
         {filteredUsers.map((user) => (
           <button
             key={user._id}
-            onClick={() => setSelectedUser(user)}
-            onContextMenu={(e) => handleContactRightClick(e, user)}
-            onMouseDown={(e) => {
-              // Only start long press timer if context menu is not already open
-              if (!contextMenu.isOpen) {
-                handleLongPressStart(e, user);
-              }
-            }}
-            onMouseUp={(e) => handleLongPressEnd(e)}
-            onMouseLeave={() => {
-              // Only cancel long press if context menu is not visible
-              if (longPressTimer && !contextMenu.isOpen) {
+            onClick={() => {
+              // Clear any pending long press when clicking
+              if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 setLongPressTimer(null);
               }
+              setSelectedUser(user);
             }}
-            onTouchStart={(e) => handleLongPressStart(e, user)}
-            onTouchEnd={(e) => handleLongPressEnd(e)}
-            onTouchCancel={(e) => handleLongPressEnd(e)}
-            onDragStart={(e) => e.preventDefault()} // Prevent drag during long press
-            style={{ userSelect: "none" }} // Prevent text selection during long press
+            onContextMenu={(e) => handleContactRightClick(e, user)}
+            onTouchStart={(e) => {
+              // Start long press timer for touch devices
+              handleLongPressStart(e, user);
+            }}
+            onTouchEnd={() => {
+              // Clear long press timer on touch end
+              handleLongPressEnd();
+            }}
+            onTouchMove={() => {
+              // Cancel long press if user moves finger (scrolling)
+              handleLongPressEnd();
+            }}
             className={`
               w-full p-3 flex items-center gap-3
-              hover:bg-base-300 transition-colors select-none
+              hover:bg-base-300 transition-colors
               ${
                 selectedUser?._id === user._id
                   ? "bg-base-300 ring-1 ring-base-300"
