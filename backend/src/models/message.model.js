@@ -23,12 +23,22 @@ const messageSchema = new mongoose.Schema(
       // Remove "HELP" from the enum since we removed help sentiment analysis
       enum: ["POSITIVE", "NEGATIVE", "NEUTRAL"],
     },
-    deletedBy: [
+    // New deletion tracking system
+    deletedForMe: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
     ],
+    deletedForEveryone: {
+      type: Boolean,
+      default: false,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   { timestamps: true }
 );
