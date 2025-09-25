@@ -778,3 +778,88 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// Bulk delete messages
+export const deleteMessages = async (req, res) => {
+  try {
+    const { messageIds } = req.body;
+    const userId = req.user._id;
+
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+      return res.status(400).json({ error: "Message IDs array is required" });
+    }
+
+    // Find all messages to delete
+    const messages = await Message.find({ _id: { $in: messageIds } });
+
+    if (messages.length === 0) {
+      return res.status(404).json({ error: "No messages found" });
+    }
+
+    // Check authorization for each message
+    const unauthorizedMessages = messages.filter((message) => {
+      const isSender = message.senderId.equals(userId);
+      const isReceiver = message.receiverId.equals(userId);
+      return !isSender && !isReceiver;
+    });
+
+    if (unauthorizedMessages.length > 0) {
+      return res.status(403).json({
+        error: "Not authorized to delete some messages",
+        unauthorizedCount: unauthorizedMessages.length,
+      });
+    }
+
+    // Check for already deleted messages
+    const alreadyDeletedMessages = messages.filter(
+      (message) => message.deletedBy && message.deletedBy.includes(userId)
+    );
+
+    if (alreadyDeletedMessages.length > 0) {
+      return res.status(400).json({
+        error: "Some messages are already deleted by you",
+        alreadyDeletedCount: alreadyDeletedMessages.length,
+      });
+    }
+
+    // Bulk update to add user to deletedBy array for all messages
+    const updateResult = await Message.updateMany(
+      { _id: { $in: messageIds } },
+      { $addToSet: { deletedBy: userId } }
+    );
+
+    // Prepare socket emission data
+    const deletionData = messageIds.map((messageId) => ({
+      messageId,
+      deletedBy: userId,
+      timestamp: new Date(),
+    }));
+
+    // Get unique user IDs involved in these messages
+    const involvedUserIds = new Set();
+    messages.forEach((message) => {
+      involvedUserIds.add(message.senderId.toString());
+      involvedUserIds.add(message.receiverId.toString());
+    });
+
+    // Emit deletion events to all involved users
+    involvedUserIds.forEach((userId) => {
+      const socketId = getReceiverSocketId(userId);
+      if (socketId) {
+        deletionData.forEach((data) => {
+          io.to(socketId).emit("messageDeleted", data);
+        });
+      }
+    });
+
+    res.status(200).json({
+      message: "Messages deleted successfully",
+      deletedCount: updateResult.modifiedCount,
+      messageIds,
+      deletedBy: userId,
+    });
+  } catch (error) {
+    console.log("Error in deleteMessages controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
