@@ -5,6 +5,8 @@ import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import AddFriendModal from "./AddFriendModal";
 import FriendRequestsModal from "./FriendRequestsModal";
+import ContactContextMenu from "./ContactContextMenu";
+import RemoveFriendModal from "./RemoveFriendModal";
 import { Users, UserPlus, Bell } from "lucide-react";
 
 const Sidebar = () => {
@@ -16,11 +18,59 @@ const Sidebar = () => {
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
   const [showRequestsModal, setShowRequestsModal] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [friendToRemove, setFriendToRemove] = useState(null);
+  const [contextMenu, setContextMenu] = useState({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    friend: null,
+  });
+  const [longPressTimer, setLongPressTimer] = useState(null);
 
   useEffect(() => {
     getUsers();
     getPendingRequests();
   }, [getUsers, getPendingRequests]);
+
+  const handleContactRightClick = (e, user) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      friend: user,
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, friend: null });
+  };
+
+  const handleLongPressStart = (e, user) => {
+    const timer = setTimeout(() => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setContextMenu({
+        isOpen: true,
+        position: {
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+        },
+        friend: user,
+      });
+    }, 500);
+    setLongPressTimer(timer);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  const handleRemoveFriend = (friend) => {
+    setFriendToRemove(friend);
+    setShowRemoveModal(true);
+  };
 
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
@@ -84,9 +134,15 @@ const Sidebar = () => {
           <button
             key={user._id}
             onClick={() => setSelectedUser(user)}
+            onContextMenu={(e) => handleContactRightClick(e, user)}
+            onMouseDown={(e) => handleLongPressStart(e, user)}
+            onMouseUp={handleLongPressEnd}
+            onMouseLeave={handleLongPressEnd}
+            onTouchStart={(e) => handleLongPressStart(e, user)}
+            onTouchEnd={handleLongPressEnd}
             className={`
               w-full p-3 flex items-center gap-3
-              hover:bg-base-300 transition-colors
+              hover:bg-base-300 transition-colors select-none
               ${
                 selectedUser?._id === user._id
                   ? "bg-base-300 ring-1 ring-base-300"
@@ -119,7 +175,16 @@ const Sidebar = () => {
         ))}
 
         {filteredUsers.length === 0 && (
-          <div className="text-center text-zinc-500 py-4">No online users</div>
+          <div className="text-center text-zinc-500 py-4">
+            <div>No friends yet</div>
+            <div className="text-xs mt-1">Add friends to start chatting</div>
+          </div>
+        )}
+
+        {filteredUsers.length > 0 && (
+          <div className="text-xs text-zinc-500 text-center py-2 px-4">
+            Right-click or long-press contacts for options
+          </div>
         )}
       </div>
 
@@ -132,6 +197,23 @@ const Sidebar = () => {
       <FriendRequestsModal
         isOpen={showRequestsModal}
         onClose={() => setShowRequestsModal(false)}
+      />
+
+      {/* Contact Context Menu */}
+      <ContactContextMenu
+        isOpen={contextMenu.isOpen}
+        onClose={closeContextMenu}
+        position={contextMenu.position}
+        friend={contextMenu.friend}
+        onSelectUser={setSelectedUser}
+        onRemoveFriend={handleRemoveFriend}
+      />
+
+      {/* Remove Friend Modal */}
+      <RemoveFriendModal
+        isOpen={showRemoveModal}
+        onClose={() => setShowRemoveModal(false)}
+        friend={friendToRemove}
       />
     </aside>
   );
