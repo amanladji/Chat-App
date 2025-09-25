@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { fullName, email, password, remember } = req.body;
   try {
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -28,8 +28,8 @@ export const signup = async (req, res) => {
     });
 
     if (newUser) {
-      // generate jwt token here
-      generateToken(newUser._id, res);
+  // generate jwt token here with remember flag
+  generateToken(newUser._id, res, { remember });
       await newUser.save();
 
       res.status(201).json({
@@ -48,7 +48,7 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, remember } = req.body;
   try {
     const user = await User.findOne({ email });
 
@@ -61,7 +61,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    generateToken(user._id, res);
+  generateToken(user._id, res, { remember });
 
     res.status(200).json({
       _id: user._id,
