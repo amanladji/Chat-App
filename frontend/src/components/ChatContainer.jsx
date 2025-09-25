@@ -12,16 +12,15 @@ import BulkDeleteConfirmModal from "./BulkDeleteConfirmModal";
 
 // Helper function to get the correct color class
 const getSentimentColorClass = (sentiment) => {
-  // ... (no changes in this function)
   switch (sentiment) {
     case "POSITIVE":
-      return "chat-bubble-success dark:bg-green-500";
+      return "bg-[#0CCA98]/80 text-white border border-[#0CCA98]/50";
     case "NEGATIVE":
-      return "chat-bubble-error dark:bg-red-500";
+      return "bg-red-600/80 text-red-50 border border-red-500/50";
     case "NEUTRAL":
-      return "chat-bubble-info dark:bg-blue-500";
+      return "bg-[#8B7FB8]/80 text-white border border-[#8B7FB8]/50";
     default:
-      return "";
+      return "bg-[#2a2434] text-zinc-100 border border-zinc-700/50";
   }
 };
 
@@ -286,7 +285,7 @@ const ChatContainer = () => {
   if (isMessagesLoading) {
     // ... (no changes here)
     return (
-      <div className="flex-1 flex flex-col overflow-auto">
+      <div className="flex-1 flex flex-col overflow-auto bg-gradient-to-b from-[#1f1a27] to-[#2a2336]">
         <ChatHeader />
         <MessageSkeleton />
         <MessageInput />
@@ -295,7 +294,7 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
+    <div className="flex-1 flex flex-col overflow-auto bg-gradient-to-b from-[#1f1a27] to-[#2a2336]">
       <ChatHeader
         onOpenStats={() => setShowStatsModal(true)}
         isMultiSelectMode={isMultiSelectMode}
@@ -309,8 +308,8 @@ const ChatContainer = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Multi-select mode indicator */}
         {isMultiSelectMode && (
-          <div className="sticky top-0 z-30 bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 backdrop-blur-sm">
-            <div className="flex items-center gap-2 text-primary">
+          <div className="sticky top-0 z-30 bg-[#3b3346]/80 border border-violet-400/30 rounded-lg p-3 mb-4 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-violet-400">
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -404,9 +403,9 @@ const ChatContainer = () => {
                     isMyMessage ? "-left-2" : "-right-2"
                   }`}
                 >
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                  <div className="w-6 h-6 bg-violet-500 rounded-full flex items-center justify-center shadow-lg">
                     <svg
-                      className="w-4 h-4 text-primary-content"
+                      className="w-4 h-4 text-white"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -442,13 +441,13 @@ const ChatContainer = () => {
               <div
                 className={`chat-bubble flex flex-col ${getSentimentColorClass(
                   message.sentiment
-                )} cursor-pointer select-none transition-all duration-200 ${
+                )} cursor-pointer select-none transition-all duration-200 rounded-xl shadow-lg ${
                   isMultiSelectMode && isSelected
-                    ? "ring-4 ring-primary ring-opacity-60 shadow-xl transform scale-[1.05] border-2 border-primary/50"
+                    ? "ring-4 ring-violet-400 ring-opacity-60 shadow-xl transform scale-[1.05] border-2 border-violet-400/50"
                     : ""
                 } ${
                   isMultiSelectMode && !isSelected
-                    ? "hover:ring-2 hover:ring-primary/30 hover:shadow-md hover:transform hover:scale-[1.02]"
+                    ? "hover:ring-2 hover:ring-violet-400/30 hover:shadow-md hover:transform hover:scale-[1.02]"
                     : ""
                 } ${!isMultiSelectMode ? "hover:shadow-sm" : ""}`}
                 onContextMenu={(e) => {

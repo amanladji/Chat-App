@@ -19,17 +19,17 @@ const FriendRequestsModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-[#1f1a27] rounded-3xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.45)] ring-1 ring-white/5 max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-zinc-700/50">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-semibold text-zinc-100">
               Friend Requests
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="text-zinc-400 hover:text-white hover:bg-zinc-700/50 p-2 rounded-full transition-colors"
             >
               <X className="h-6 w-6" />
             </button>
@@ -43,22 +43,22 @@ const FriendRequestsModal = ({ isOpen, onClose }) => {
               {pendingRequests.map((request) => (
                 <div
                   key={request._id}
-                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-[#2a2434]/80 rounded-lg border border-zinc-700/50"
                 >
                   <div className="flex items-center gap-3">
                     <img
                       src={request.requester.profilePic || "/avatar.png"}
                       alt={request.requester.fullName}
-                      className="h-12 w-12 rounded-full object-cover"
+                      className="h-12 w-12 rounded-full object-cover border-2 border-zinc-600/50"
                     />
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
+                      <p className="font-medium text-zinc-100">
                         {request.requester.fullName}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <p className="text-sm text-zinc-400">
                         {request.requester.email}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                      <p className="text-xs text-zinc-500">
                         {new Date(request.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -85,9 +85,7 @@ const FriendRequestsModal = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-500 dark:text-gray-400">
-                No pending friend requests
-              </p>
+              <p className="text-zinc-400">No pending friend requests</p>
             </div>
           )}
         </div>

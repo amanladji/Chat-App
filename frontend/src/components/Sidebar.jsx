@@ -88,24 +88,26 @@ const Sidebar = () => {
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
-      <div className="border-b border-base-300 w-full p-5">
+    <aside className="h-full w-20 lg:w-72 border-r border-[#3b3346] bg-[#2a2434] flex flex-col transition-all duration-200 text-zinc-100">
+      <div className="border-b border-[#3b3346] w-full p-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Users className="size-6" />
-            <span className="font-medium hidden lg:block">Contacts</span>
+            <Users className="size-6 text-violet-400" />
+            <span className="font-medium hidden lg:block text-zinc-100">
+              Contacts
+            </span>
           </div>
 
           {/* Friend management buttons */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowRequestsModal(true)}
-              className="relative btn btn-sm btn-ghost"
+              className="relative btn btn-sm bg-[#3b3346] hover:bg-[#4a4357] border-[#3b3346] text-zinc-300 hover:text-zinc-100"
               title="Friend Requests"
             >
               <Bell className="size-4" />
               {pendingRequests && pendingRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-violet-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {pendingRequests.length}
                 </span>
               )}
@@ -113,7 +115,7 @@ const Sidebar = () => {
 
             <button
               onClick={() => setShowAddFriendModal(true)}
-              className="btn btn-sm btn-ghost"
+              className="btn btn-sm bg-violet-500 hover:bg-violet-400 border-violet-500 text-white"
               title="Add Friend"
             >
               <UserPlus className="size-4" />
@@ -128,9 +130,9 @@ const Sidebar = () => {
               type="checkbox"
               checked={showOnlineOnly}
               onChange={(e) => setShowOnlineOnly(e.target.checked)}
-              className="checkbox checkbox-sm"
+              className="checkbox checkbox-sm [--chkbg:#6d55e6] [--chkfg:#fff] border-[#3b3346]"
             />
-            <span className="text-sm">Show online only</span>
+            <span className="text-sm text-zinc-300">Show online only</span>
           </label>
           <span className="text-xs text-zinc-500">
             ({onlineUsers.length - 1} online)
@@ -138,7 +140,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <div className="overflow-y-auto w-full py-3">
+      <div className="overflow-y-auto w-full py-3 bg-[#2a2434]">
         {filteredUsers.map((user) => (
           <button
             key={user._id}
@@ -165,10 +167,10 @@ const Sidebar = () => {
             }}
             className={`
               w-full p-3 flex items-center gap-3
-              hover:bg-base-300 transition-colors
+              hover:bg-[#3b3346] transition-colors text-left
               ${
                 selectedUser?._id === user._id
-                  ? "bg-base-300 ring-1 ring-base-300"
+                  ? "bg-[#3b3346] ring-1 ring-violet-400/50 border-l-2 border-violet-400"
                   : ""
               }
             `}
@@ -177,19 +179,21 @@ const Sidebar = () => {
               <img
                 src={user.profilePic || "/avatar.png"}
                 alt={user.name}
-                className="size-12 object-cover rounded-full"
+                className="size-12 object-cover rounded-full ring-2 ring-[#3b3346]"
               />
               {onlineUsers.includes(user._id) && (
                 <span
                   className="absolute bottom-0 right-0 size-3 bg-green-500 
-                  rounded-full ring-2 ring-zinc-900"
+                  rounded-full ring-2 ring-[#2a2434]"
                 />
               )}
             </div>
 
             {/* User info - only visible on larger screens */}
             <div className="hidden lg:block text-left min-w-0">
-              <div className="font-medium truncate">{user.fullName}</div>
+              <div className="font-medium truncate text-zinc-100">
+                {user.fullName}
+              </div>
               <div className="text-sm text-zinc-400">
                 {onlineUsers.includes(user._id) ? "Online" : "Offline"}
               </div>
@@ -198,9 +202,11 @@ const Sidebar = () => {
         ))}
 
         {filteredUsers.length === 0 && (
-          <div className="text-center text-zinc-500 py-4">
+          <div className="text-center text-zinc-400 py-4">
             <div>No friends yet</div>
-            <div className="text-xs mt-1">Add friends to start chatting</div>
+            <div className="text-xs mt-1 text-zinc-500">
+              Add friends to start chatting
+            </div>
           </div>
         )}
 

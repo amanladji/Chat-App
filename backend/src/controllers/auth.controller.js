@@ -11,7 +11,9 @@ export const signup = async (req, res) => {
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
     }
 
     const user = await User.findOne({ email });
@@ -28,8 +30,8 @@ export const signup = async (req, res) => {
     });
 
     if (newUser) {
-  // generate jwt token here with remember flag
-  generateToken(newUser._id, res, { remember });
+      // generate jwt token here with remember flag
+      generateToken(newUser._id, res, { remember });
       await newUser.save();
 
       res.status(201).json({
@@ -61,7 +63,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-  generateToken(user._id, res, { remember });
+    generateToken(user._id, res, { remember });
 
     res.status(200).json({
       _id: user._id,
@@ -87,19 +89,37 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body;
+    const { profilePic, fullName } = req.body;
     const userId = req.user._id;
 
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
+    // Check if at least one field is provided
+    if (!profilePic && !fullName) {
+      return res
+        .status(400)
+        .json({
+          message: "At least one field (profilePic or fullName) is required",
+        });
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { profilePic: uploadResponse.secure_url },
-      { new: true }
-    );
+    const updateData = {};
+
+    // Handle profile picture update
+    if (profilePic) {
+      const uploadResponse = await cloudinary.uploader.upload(profilePic);
+      updateData.profilePic = uploadResponse.secure_url;
+    }
+
+    // Handle full name update
+    if (fullName) {
+      if (fullName.trim().length === 0) {
+        return res.status(400).json({ message: "Full name cannot be empty" });
+      }
+      updateData.fullName = fullName.trim();
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+    });
 
     res.status(200).json(updatedUser);
   } catch (error) {
