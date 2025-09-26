@@ -44,14 +44,41 @@ export const useChatStore = create((set, get) => ({
 
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
+
+    // Create temporary message for immediate UI feedback
+    const tempMessage = {
+      _id: `temp-${Date.now()}`, // Temporary ID
+      text: messageData.text,
+      image: messageData.image,
+      senderId: useAuthStore.getState().authUser._id,
+      receiverId: selectedUser._id,
+      createdAt: new Date().toISOString(),
+      sentiment: null,
+      isPending: true, // Flag to identify temp message
+    };
+
+    // Optimistically add message to UI immediately
+    set({ messages: [...messages, tempMessage] });
+
     try {
       const res = await axiosInstance.post(
         `/messages/send/${selectedUser._id}`,
         messageData
       );
-      set({ messages: [...messages, res.data] });
+
+      // Replace temp message with real message from server
+      const updatedMessages = get().messages.map((msg) =>
+        msg._id === tempMessage._id ? res.data : msg
+      );
+      set({ messages: updatedMessages });
     } catch (error) {
-      toast.error(error.response.data.message);
+      // Remove temp message if sending failed
+      const filteredMessages = get().messages.filter(
+        (msg) => msg._id !== tempMessage._id
+      );
+      set({ messages: filteredMessages });
+
+      toast.error(error.response?.data?.message || "Failed to send message");
     }
   },
 

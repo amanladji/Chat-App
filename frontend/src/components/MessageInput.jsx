@@ -32,18 +32,27 @@ const MessageInput = () => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
 
-    try {
-      await sendMessage({
-        text: text.trim(),
-        image: imagePreview,
-      });
+    // Store the message data before clearing the form
+    const messageData = {
+      text: text.trim(),
+      image: imagePreview,
+    };
 
-      // Clear form
-      setText("");
-      setImagePreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    // Clear form immediately for better UX (no delay)
+    setText("");
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    // Send message in background - UI will update via socket when message is received
+    try {
+      await sendMessage(messageData);
     } catch (error) {
       console.error("Failed to send message:", error);
+      // Optionally restore the form data if sending failed
+      setText(messageData.text);
+      if (messageData.image) {
+        setImagePreview(messageData.image);
+      }
     }
   };
 

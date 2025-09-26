@@ -446,6 +446,8 @@ const ChatContainer = () => {
                 className={`chat-bubble flex flex-col ${getSentimentColorClass(
                   message.sentiment
                 )} cursor-pointer select-none transition-all duration-200 rounded-xl shadow-lg ${
+                  message.isPending ? "opacity-70 animate-pulse" : ""
+                } ${
                   isMultiSelectMode && isSelected
                     ? "ring-2 ring-violet-400 ring-opacity-60 border border-violet-400/50"
                     : ""

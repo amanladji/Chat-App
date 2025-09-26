@@ -403,6 +403,11 @@ function analyzeContextualSentiment(text) {
     /\b(don't like.*face|hate.*face|can't stand)\b/i,
     /\b(go away|get lost|leave me alone|shut up)\b/i,
 
+    // Direct emotional expressions that should be negative
+    /\b(i am|im|i'm)\s+(angry|mad|furious|pissed|annoyed|irritated|frustrated|upset|sad|depressed|miserable|hate|hating)\b/i,
+    /\b(feeling|so|very|really)\s+(angry|mad|furious|pissed|annoyed|irritated|frustrated|upset|sad|depressed|miserable)\b/i,
+    /\b(i feel\s+)?(angry|mad|furious|pissed|annoyed|irritated|frustrated|upset|sad|depressed|miserable)\b/i,
+
     // SPECIFIC FIXES for the mentioned cases:
 
     // 4. Frustrated/annoyed responses should be negative
@@ -449,26 +454,85 @@ function isGibberishText(text) {
   const cleanText = text.toLowerCase().replace(/[^a-z]/g, "");
 
   // If text is too short, not considered gibberish
-  if (cleanText.length < 4) return false;
+  if (cleanText.length < 6) return false;
 
-  // Check for patterns that indicate gibberish
-  const gibberishPatterns = [
-    // Random consonant clusters
-    /[bcdfghjklmnpqrstvwxyz]{4,}/i,
-    // Lack of vowels in longer strings
-    /^[bcdfghjklmnpqrstvwxyz]{6,}$/i,
-    // Random character sequences
-    /^[qwrtyuiopasdfghjklzxcvbnm]{8,}$/i,
+  // Common English words to exclude from gibberish detection
+  const commonWords = [
+    "angry",
+    "happy",
+    "sad",
+    "good",
+    "bad",
+    "great",
+    "fine",
+    "okay",
+    "yes",
+    "no",
+    "hello",
+    "goodbye",
+    "thanks",
+    "please",
+    "sorry",
+    "love",
+    "hate",
+    "like",
+    "want",
+    "need",
+    "know",
+    "think",
+    "feel",
+    "see",
+    "hear",
+    "come",
+    "go",
+    "make",
+    "take",
+    "give",
+    "get",
+    "have",
+    "be",
+    "do",
+    "say",
+    "tell",
+    "ask",
   ];
 
-  // Check vowel ratio - normal English has roughly 40% vowels
+  // Check if the text contains any common English words
+  for (const word of commonWords) {
+    if (cleanText.includes(word)) {
+      return false; // Contains common English words, not gibberish
+    }
+  }
+
+  // More specific gibberish patterns - only very obvious cases
+  const gibberishPatterns = [
+    // Extremely long consonant clusters (6+ consecutive consonants)
+    /[bcdfghjklmnpqrstvwxyz]{6,}/i,
+    // Only consonants in a long string (8+ characters, no vowels)
+    /^[bcdfghjklmnpqrstvwxyz]{8,}$/i,
+    // Repeating character patterns that are clearly not words
+    /(.)\1{4,}/i, // Same character repeated 5+ times
+    // Very specific impossible letter combinations
+    /[qx]{2,}/i, // Multiple q's or x's together
+    /[bcdfghjklmnpqrstvwxyz]{2,}[qx][bcdfghjklmnpqrstvwxyz]{2,}/i,
+  ];
+
+  // Check vowel ratio - extremely restrictive, only for very long text
   const vowels = (cleanText.match(/[aeiou]/g) || []).length;
   const vowelRatio = vowels / cleanText.length;
 
-  // If very few vowels, likely gibberish
-  if (cleanText.length > 5 && vowelRatio < 0.2) {
+  // Only flag as gibberish if very long text with almost no vowels
+  if (cleanText.length > 10 && vowelRatio < 0.1) {
     console.log(
-      `Gibberish detected - low vowel ratio: ${vowelRatio} for "${text}"`
+      `Gibberish detected - extremely low vowel ratio: ${vowelRatio} for "${text}"`
+    );
+    return true;
+  }
+
+  // More lenient vowel ratio check - only flag if very extreme
+  if (cleanText.length > 6 && vowelRatio < 0.15) {
+    console.log(
+      `Gibberish detected - very low vowel ratio: ${vowelRatio} for "${text}"`
     );
     return true;
   }
