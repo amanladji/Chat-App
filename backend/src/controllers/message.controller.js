@@ -174,6 +174,345 @@ import mongoose from "mongoose";
 const languageClient = new LanguageServiceClient();
 const translate = new Translate();
 
+// Emoji sentiment mapping based on the frontend emoji collection
+const EMOJI_SENTIMENT_MAP = {
+  // POSITIVE EMOJIS
+  POSITIVE: [
+    // Happy & Positive faces
+    "😀",
+    "😃",
+    "😄",
+    "😁",
+    "😆",
+    "😅",
+    "🤣",
+    "😂",
+    "🙂",
+    "🙃",
+    "😉",
+    "😊",
+    "😇",
+    "🥰",
+    "😍",
+    "🤩",
+    "😘",
+    "😗",
+    "😚",
+    "😙",
+    "😋",
+    "😛",
+    "😜",
+    "🤪",
+    "😎",
+    "🤓",
+    "🤗",
+    "🤭",
+    "🤫",
+
+    // Hearts & Love symbols
+    "❤️",
+    "🧡",
+    "💛",
+    "💚",
+    "💙",
+    "💜",
+    "🖤",
+    "🤍",
+    "🤎",
+    "❣️",
+    "💕",
+    "💞",
+    "💓",
+    "💗",
+    "💖",
+    "💘",
+    "💝",
+    "💋",
+
+    // Positive gestures
+    "👍",
+    "👌",
+    "✌️",
+    "🤞",
+    "🤟",
+    "🤘",
+    "🤙",
+    "👋",
+    "💪",
+
+    // Celebration & Party
+    "🎉",
+    "🎊",
+    "🥳",
+    "🎈",
+    "🎁",
+    "🎂",
+    "🍰",
+    "🧁",
+    "🥂",
+    "🍻",
+    "🍾",
+    "🎆",
+    "🎇",
+    "🌟",
+    "💫",
+
+    // Positive symbols
+    "⭐",
+    "✨",
+    "💎",
+    "💯",
+    "⚡",
+  ],
+
+  // NEGATIVE EMOJIS
+  NEGATIVE: [
+    // Angry & Negative faces
+    "😠",
+    "😡",
+    "🤬",
+    "😤",
+    "😣",
+    "👿",
+    "💀",
+    "☠️",
+    "😈",
+    "😰",
+    "😨",
+    "😭",
+    "😢",
+    "🥺",
+    "😟",
+    "😞",
+    "😔",
+    "😕",
+    "🙁",
+    "☹️",
+    "😖",
+    "😫",
+    "😩",
+
+    // Negative gestures
+    "👎",
+
+    // Broken heart
+    "💔",
+
+    // Negative symbols
+    "💢",
+  ],
+
+  // NEUTRAL EMOJIS
+  NEUTRAL: [
+    // Thinking/contemplative
+    "🤔",
+
+    // Neutral expressions
+    "😐",
+    "😑",
+    "😶",
+    "😏",
+    "😒",
+    "🙄",
+    "😬",
+    "🤐",
+    "😌",
+    "😴",
+    "😷",
+    "🤒",
+    "🤕",
+    "🤧",
+    "🥵",
+    "🥶",
+    "🥴",
+    "😵",
+    "🤯",
+    "🤠",
+    "🤡",
+    "🥱",
+    "😪",
+    "🤤",
+
+    // Body parts (neutral)
+    "👈",
+    "👉",
+    "👆",
+    "👇",
+    "☝️",
+    "✋",
+    "🤚",
+    "🖐",
+    "🖖",
+    "🤏",
+    "🦵",
+    "🦶",
+    "👂",
+    "👀",
+    "🧠",
+    "👅",
+    "👄",
+    "🦷",
+    "👃",
+
+    // Animals & Nature (generally neutral)
+    "🐶",
+    "🐱",
+    "🐭",
+    "🐹",
+    "🐰",
+    "🦊",
+    "🐻",
+    "🐼",
+    "🐨",
+    "🐯",
+    "🦁",
+    "🐮",
+    "🐷",
+    "🐸",
+    "🐵",
+    "🙈",
+    "🙉",
+    "🙊",
+    "🐒",
+    "🐔",
+    "🐧",
+    "🐦",
+    "🐤",
+    "🐣",
+
+    // Food & Drinks (generally neutral)
+    "🍕",
+    "🍔",
+    "🍟",
+    "🌭",
+    "🥪",
+    "🌮",
+    "🌯",
+    "🥙",
+    "🥘",
+    "🍝",
+    "🍜",
+    "🍲",
+    "🍛",
+    "🍱",
+    "🍘",
+    "🍙",
+    "🍞",
+    "🥖",
+    "🥨",
+    "🧀",
+    "🥚",
+    "🍳",
+    "🥓",
+    "🥩",
+  ],
+
+  // CONTEXT-DEPENDENT EMOJIS (can be positive or negative depending on context)
+  MIXED: [
+    "🔥", // Can be positive (lit, cool) or negative (angry, disaster)
+  ],
+};
+
+// Function to extract emojis from text
+function extractEmojisFromText(text) {
+  // Unicode ranges for emojis
+  const emojiRegex =
+    /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]/gu;
+
+  const emojis = text.match(emojiRegex) || [];
+  return emojis;
+}
+
+// Function to analyze emoji sentiment
+function analyzeEmojiSentiment(emojis) {
+  if (!emojis || emojis.length === 0) {
+    return { sentiment: null, confidence: 0, emojiCount: 0 };
+  }
+
+  let positiveCount = 0;
+  let negativeCount = 0;
+  let neutralCount = 0;
+  let mixedCount = 0;
+
+  emojis.forEach((emoji) => {
+    if (EMOJI_SENTIMENT_MAP.POSITIVE.includes(emoji)) {
+      positiveCount++;
+    } else if (EMOJI_SENTIMENT_MAP.NEGATIVE.includes(emoji)) {
+      negativeCount++;
+    } else if (EMOJI_SENTIMENT_MAP.NEUTRAL.includes(emoji)) {
+      neutralCount++;
+    } else if (EMOJI_SENTIMENT_MAP.MIXED.includes(emoji)) {
+      mixedCount++;
+    }
+  });
+
+  const totalMappedEmojis =
+    positiveCount + negativeCount + neutralCount + mixedCount;
+  const totalEmojis = emojis.length;
+
+  // Calculate confidence based on how many emojis we could classify
+  const confidence = totalMappedEmojis / totalEmojis;
+
+  console.log(
+    `📊 Emoji analysis: ${emojis.join(
+      ", "
+    )} - Positive: ${positiveCount}, Negative: ${negativeCount}, Neutral: ${neutralCount}, Mixed: ${mixedCount}`
+  );
+
+  // Determine overall emoji sentiment
+  if (positiveCount > negativeCount) {
+    return {
+      sentiment: "POSITIVE",
+      confidence: confidence,
+      emojiCount: totalEmojis,
+      breakdown: {
+        positive: positiveCount,
+        negative: negativeCount,
+        neutral: neutralCount,
+        mixed: mixedCount,
+      },
+    };
+  } else if (negativeCount > positiveCount) {
+    return {
+      sentiment: "NEGATIVE",
+      confidence: confidence,
+      emojiCount: totalEmojis,
+      breakdown: {
+        positive: positiveCount,
+        negative: negativeCount,
+        neutral: neutralCount,
+        mixed: mixedCount,
+      },
+    };
+  } else if (positiveCount === negativeCount && positiveCount > 0) {
+    // Equal positive and negative - consider mixed emojis and context
+    return {
+      sentiment: "NEUTRAL",
+      confidence: confidence * 0.5, // Lower confidence for mixed signals
+      emojiCount: totalEmojis,
+      breakdown: {
+        positive: positiveCount,
+        negative: negativeCount,
+        neutral: neutralCount,
+        mixed: mixedCount,
+      },
+    };
+  } else {
+    // Mostly neutral emojis or no sentiment detected
+    return {
+      sentiment: "NEUTRAL",
+      confidence: confidence,
+      emojiCount: totalEmojis,
+      breakdown: {
+        positive: positiveCount,
+        negative: negativeCount,
+        neutral: neutralCount,
+        mixed: mixedCount,
+      },
+    };
+  }
+}
+
 // Function to normalize diacritical marks for better detection
 function normalizeDiacritics(text) {
   const diacriticalMap = {
@@ -594,11 +933,18 @@ async function analyzeMessage(text) {
   let textToAnalyze = text;
 
   try {
-    // Step 1: Detect the language of the input text
+    // Step 1: Extract and analyze emojis first
+    const emojisInText = extractEmojisFromText(text);
+    const emojiAnalysis = analyzeEmojiSentiment(emojisInText);
+
+    console.log(`🎭 Message: "${text}"`);
+    console.log(`📊 Emoji analysis result:`, emojiAnalysis);
+
+    // Step 2: Detect the language of the input text
     const [detection] = await translate.detect(text);
     const detectedLanguage = detection.language;
 
-    // Step 1.5: Check for transliterated Indic language patterns
+    // Step 2.5: Check for transliterated Indic language patterns
     const hasIndicPatterns = hasIndicTransliterationPatterns(text);
     const normalizedText = normalizeDiacritics(text);
 
@@ -610,7 +956,7 @@ async function analyzeMessage(text) {
       console.log(`Diacritical marks found, normalized: "${normalizedText}"`);
     }
 
-    // Step 2: Enhanced translation logic
+    // Step 3: Enhanced translation logic
     const needsTranslation =
       detectedLanguage !== "en" || hasIndicPatterns || normalizedText !== text;
 
@@ -712,13 +1058,22 @@ async function analyzeMessage(text) {
       console.log(`No translation needed for English text: "${text}"`);
     }
 
-    // Step 3: Perform sentiment analysis on the text (English or translated)
+    // Step 4: Perform sentiment analysis on the text (English or translated)
 
     // First, check if the text is gibberish
     if (isGibberishText(textToAnalyze)) {
       console.log(
-        `Gibberish text detected: "${textToAnalyze}" - returning NEUTRAL`
+        `Gibberish text detected: "${textToAnalyze}" - considering emoji sentiment if available`
       );
+
+      // For gibberish text, rely more heavily on emoji sentiment
+      if (emojiAnalysis.emojiCount > 0 && emojiAnalysis.confidence > 0.5) {
+        console.log(
+          `Using emoji sentiment for gibberish text: ${emojiAnalysis.sentiment}`
+        );
+        return emojiAnalysis.sentiment;
+      }
+
       return "NEUTRAL";
     }
 
@@ -729,30 +1084,62 @@ async function analyzeMessage(text) {
       console.log(
         `Contextual sentiment override: "${textToAnalyze}" -> ${contextualSentiment}`
       );
+
+      // If we have strong emoji sentiment that contradicts contextual analysis, consider both
+      if (emojiAnalysis.emojiCount > 0 && emojiAnalysis.confidence > 0.7) {
+        if (contextualSentiment !== emojiAnalysis.sentiment) {
+          console.log(
+            `⚠️ Emoji sentiment (${emojiAnalysis.sentiment}) conflicts with contextual sentiment (${contextualSentiment})`
+          );
+
+          // If emojis are strongly negative but text is contextually positive, emojis might be sarcastic
+          if (
+            emojiAnalysis.sentiment === "NEGATIVE" &&
+            contextualSentiment === "POSITIVE"
+          ) {
+            console.log(
+              `Possibly sarcastic usage - using emoji sentiment: ${emojiAnalysis.sentiment}`
+            );
+            return emojiAnalysis.sentiment;
+          }
+
+          // If emojis are positive but text is negative, might be trying to soften the message
+          if (
+            emojiAnalysis.sentiment === "POSITIVE" &&
+            contextualSentiment === "NEGATIVE"
+          ) {
+            console.log(
+              `Positive emojis might be softening negative message - using text sentiment: ${contextualSentiment}`
+            );
+            return contextualSentiment;
+          }
+        }
+      }
+
       return contextualSentiment;
     }
 
-    // If no contextual override, proceed with Google's sentiment analysis
+    // Step 5: If no contextual override, proceed with Google's sentiment analysis and combine with emoji analysis
     const document = {
       content: textToAnalyze,
       type: "PLAIN_TEXT",
     };
 
     const [result] = await languageClient.analyzeSentiment({ document });
-    const score = result.documentSentiment.score;
+    const textScore = result.documentSentiment.score;
 
     console.log(
-      `Google sentiment analysis - Score: ${score} for text: "${textToAnalyze}"`
+      `Google sentiment analysis - Score: ${textScore} for text: "${textToAnalyze}"`
     );
 
-    // Adjusted thresholds for better accuracy based on observed patterns
-    // More conservative thresholds to reduce false positives/negatives
-    if (score >= 0.3) return "POSITIVE"; // Increased from 0.2 to 0.3
-    if (score <= -0.4) return "NEGATIVE"; // Made more strict: -0.4 instead of -0.3
+    // Determine text sentiment using existing thresholds
+    let textSentiment;
+    if (textScore >= 0.3) textSentiment = "POSITIVE";
+    else if (textScore <= -0.4) textSentiment = "NEGATIVE";
+    else textSentiment = "NEUTRAL";
 
     // Handle edge cases in the neutral zone more carefully
-    if (score > 0.1 && score < 0.3) {
-      // Slightly positive but not clearly positive - check for specific patterns
+    if (textScore > 0.1 && textScore < 0.3) {
       if (
         /\b(okay|fine|sure|alright)\b/i.test(textToAnalyze) &&
         !/\b(great|good|nice|happy|excellent)\b/i.test(textToAnalyze)
@@ -760,12 +1147,11 @@ async function analyzeMessage(text) {
         console.log(
           `Borderline positive treated as NEUTRAL: "${textToAnalyze}"`
         );
-        return "NEUTRAL";
+        textSentiment = "NEUTRAL";
       }
     }
 
-    if (score < -0.1 && score > -0.4) {
-      // Slightly negative but not clearly negative - check for empathy/concern
+    if (textScore < -0.1 && textScore > -0.4) {
       if (
         /\b(sorry|oh no|concerned|worried)\b/i.test(textToAnalyze) &&
         !/\b(angry|hate|terrible|awful)\b/i.test(textToAnalyze)
@@ -773,11 +1159,78 @@ async function analyzeMessage(text) {
         console.log(
           `Empathetic response treated as NEUTRAL: "${textToAnalyze}"`
         );
+        textSentiment = "NEUTRAL";
+      }
+    }
+
+    // Step 6: Combine text sentiment with emoji sentiment
+    if (emojiAnalysis.emojiCount > 0) {
+      console.log(
+        `🔀 Combining text sentiment (${textSentiment}) with emoji sentiment (${emojiAnalysis.sentiment})`
+      );
+      console.log(
+        `📊 Emoji confidence: ${emojiAnalysis.confidence}, Emoji count: ${emojiAnalysis.emojiCount}`
+      );
+
+      // If we have high confidence emoji sentiment and multiple emojis, give it more weight
+      if (emojiAnalysis.confidence >= 0.8 && emojiAnalysis.emojiCount >= 2) {
+        console.log(
+          `High confidence emoji sentiment takes precedence: ${emojiAnalysis.sentiment}`
+        );
+        return emojiAnalysis.sentiment;
+      }
+
+      // If text sentiment is neutral but we have clear emoji sentiment, use emoji sentiment
+      if (
+        textSentiment === "NEUTRAL" &&
+        emojiAnalysis.sentiment !== "NEUTRAL" &&
+        emojiAnalysis.confidence > 0.5
+      ) {
+        console.log(
+          `Text is neutral, using emoji sentiment: ${emojiAnalysis.sentiment}`
+        );
+        return emojiAnalysis.sentiment;
+      }
+
+      // If both agree, return the sentiment
+      if (textSentiment === emojiAnalysis.sentiment) {
+        console.log(`Text and emoji sentiment agree: ${textSentiment}`);
+        return textSentiment;
+      }
+
+      // If they disagree, use weighted approach
+      if (textSentiment !== emojiAnalysis.sentiment) {
+        console.log(
+          `⚖️ Text and emoji sentiment disagree - Text: ${textSentiment}, Emoji: ${emojiAnalysis.sentiment}`
+        );
+
+        // Give more weight to emoji sentiment if we have multiple emojis and reasonable confidence
+        if (emojiAnalysis.emojiCount >= 2 && emojiAnalysis.confidence > 0.6) {
+          console.log(
+            `Multiple emojis with good confidence, using emoji sentiment: ${emojiAnalysis.sentiment}`
+          );
+          return emojiAnalysis.sentiment;
+        }
+
+        // If text sentiment is strong (very positive or very negative), use text sentiment
+        if (textScore >= 0.5 || textScore <= -0.5) {
+          console.log(
+            `Strong text sentiment detected, using text sentiment: ${textSentiment}`
+          );
+          return textSentiment;
+        }
+
+        // Default to neutral when there's disagreement without clear winner
+        console.log(`Unclear sentiment conflict, defaulting to NEUTRAL`);
         return "NEUTRAL";
       }
     }
 
-    return "NEUTRAL";
+    // If no emojis, just return text sentiment
+    console.log(
+      `📝 No emojis detected, using text sentiment: ${textSentiment}`
+    );
+    return textSentiment;
   } catch (error) {
     console.error("Error analyzing sentiment:", error.message);
     return null;
