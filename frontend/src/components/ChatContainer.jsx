@@ -325,30 +325,50 @@ const ChatContainer = () => {
         shouldScrollToBottomRef.current ||
         prevMessageCountRef.current === 0
       ) {
-        // Use multiple timeouts with increasing delays for server compatibility
-        const scrollToBottom = () => {
-          if (messageEndRef.current) {
-            messageEndRef.current.scrollIntoView({ behavior: "instant" });
+        // More robust scrolling method for server environments
+        const forceScrollToBottom = () => {
+          if (messageEndRef.current && messagesContainerRef.current) {
+            // Method 1: Direct scroll
+            messagesContainerRef.current.scrollTop =
+              messagesContainerRef.current.scrollHeight;
+
+            // Method 2: scrollIntoView
+            messageEndRef.current.scrollIntoView({
+              behavior: "instant",
+              block: "end",
+              inline: "nearest",
+            });
           }
         };
 
-        // Multiple attempts with increasing delays for server environments
-        setTimeout(scrollToBottom, 100);
-        setTimeout(scrollToBottom, 300);
-        setTimeout(scrollToBottom, 500);
+        // Use requestAnimationFrame for better timing
+        requestAnimationFrame(() => {
+          forceScrollToBottom();
+
+          // Additional attempts with timeouts as fallback
+          setTimeout(forceScrollToBottom, 50);
+          setTimeout(forceScrollToBottom, 150);
+          setTimeout(forceScrollToBottom, 300);
+          setTimeout(forceScrollToBottom, 500);
+          setTimeout(forceScrollToBottom, 1000);
+        });
 
         // Reset the flag after scrolling
         setTimeout(() => {
           shouldScrollToBottomRef.current = false;
-        }, 600);
+        }, 1100);
       }
       // If new messages were truly added, scroll smoothly
       else if (currentMessageCount > prevMessageCountRef.current) {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           if (messageEndRef.current) {
-            messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+            messageEndRef.current.scrollIntoView({
+              behavior: "smooth",
+              block: "end",
+              inline: "nearest",
+            });
           }
-        }, 100);
+        });
       }
     }
 
@@ -358,18 +378,31 @@ const ChatContainer = () => {
 
   // Additional useEffect to ensure scroll to bottom on component mount
   useEffect(() => {
-    if (messages?.length > 0 && messageEndRef.current) {
-      // Multiple attempts with longer delays for server environments
-      const scrollToBottom = () => {
-        if (messageEndRef.current) {
-          messageEndRef.current.scrollIntoView({ behavior: "instant" });
+    if (messages?.length > 0) {
+      // More aggressive scrolling for server environments
+      const ensureScrollToBottom = () => {
+        if (messageEndRef.current && messagesContainerRef.current) {
+          // Direct scroll method
+          messagesContainerRef.current.scrollTop =
+            messagesContainerRef.current.scrollHeight;
+
+          // scrollIntoView as backup
+          messageEndRef.current.scrollIntoView({
+            behavior: "instant",
+            block: "end",
+            inline: "nearest",
+          });
         }
       };
 
-      setTimeout(scrollToBottom, 200);
-      setTimeout(scrollToBottom, 400);
-      setTimeout(scrollToBottom, 600);
-      setTimeout(scrollToBottom, 1000); // Extra delay for slower server response
+      // Use requestAnimationFrame and multiple timeouts
+      requestAnimationFrame(ensureScrollToBottom);
+      setTimeout(ensureScrollToBottom, 100);
+      setTimeout(ensureScrollToBottom, 300);
+      setTimeout(ensureScrollToBottom, 500);
+      setTimeout(ensureScrollToBottom, 800);
+      setTimeout(ensureScrollToBottom, 1200);
+      setTimeout(ensureScrollToBottom, 2000); // Extra long delay for very slow servers
     }
   }, [messages?.length]);
 
@@ -380,27 +413,59 @@ const ChatContainer = () => {
         // Set flag to force scroll to bottom
         shouldScrollToBottomRef.current = true;
 
-        // Multiple scroll attempts with increasing delays for server compatibility
-        const scrollToBottom = () => {
-          if (messageEndRef.current && shouldScrollToBottomRef.current) {
-            messageEndRef.current.scrollIntoView({ behavior: "instant" });
+        // Robust scrolling for server environments
+        const forceScrollToBottom = () => {
+          if (messageEndRef.current && messagesContainerRef.current) {
+            // Direct scroll method
+            messagesContainerRef.current.scrollTop =
+              messagesContainerRef.current.scrollHeight;
+
+            // scrollIntoView as backup
+            messageEndRef.current.scrollIntoView({
+              behavior: "instant",
+              block: "end",
+              inline: "nearest",
+            });
           }
         };
 
-        setTimeout(scrollToBottom, 100);
-        setTimeout(scrollToBottom, 300);
-        setTimeout(scrollToBottom, 500);
+        // Multiple scroll attempts
+        requestAnimationFrame(forceScrollToBottom);
+        setTimeout(forceScrollToBottom, 100);
+        setTimeout(forceScrollToBottom, 300);
+        setTimeout(forceScrollToBottom, 600);
         setTimeout(() => {
-          scrollToBottom();
+          forceScrollToBottom();
           shouldScrollToBottomRef.current = false;
-        }, 800);
+        }, 1000);
+      }
+    };
+
+    // Also add focus event listener for when user returns to tab/window
+    const handleFocus = () => {
+      if (messages?.length > 0) {
+        shouldScrollToBottomRef.current = true;
+        setTimeout(() => {
+          if (messageEndRef.current && messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop =
+              messagesContainerRef.current.scrollHeight;
+            messageEndRef.current.scrollIntoView({
+              behavior: "instant",
+              block: "end",
+              inline: "nearest",
+            });
+            shouldScrollToBottomRef.current = false;
+          }
+        }, 200);
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [messages?.length]);
 
