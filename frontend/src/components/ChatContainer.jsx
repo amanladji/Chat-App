@@ -433,11 +433,6 @@ const ChatContainer = () => {
                   />
                 </div>
               </div>
-              <div className="chat-header mb-1">
-                <time className="text-xs opacity-50 ml-1">
-                  {formatMessageTime(message.createdAt)}
-                </time>
-              </div>
               <div
                 className={`chat-bubble flex flex-col ${getSentimentColorClass(
                   message.sentiment
@@ -512,6 +507,11 @@ const ChatContainer = () => {
                   />
                 )}
                 {message.text && <p>{message.text}</p>}
+              </div>
+              <div className="chat-footer opacity-50">
+                <time className="text-xs">
+                  {formatMessageTime(message.createdAt)}
+                </time>
               </div>
             </div>
           );

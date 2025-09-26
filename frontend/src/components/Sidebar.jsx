@@ -7,7 +7,7 @@ import AddFriendModal from "./AddFriendModal";
 import FriendRequestsModal from "./FriendRequestsModal";
 import ContactContextMenu from "./ContactContextMenu";
 import RemoveFriendModal from "./RemoveFriendModal";
-import { Users, UserPlus, Bell } from "lucide-react";
+import { Users, UserPlus, Bell, Search } from "lucide-react";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } =
@@ -16,6 +16,7 @@ const Sidebar = () => {
   const { onlineUsers } = useAuthStore();
 
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -81,14 +82,29 @@ const Sidebar = () => {
     setShowRemoveModal(true);
   };
 
-  const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
-    : users;
+  const filteredUsers = users
+    .filter((user) => {
+      // Filter by search query
+      if (searchQuery.trim()) {
+        return (
+          user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      return true;
+    })
+    .filter((user) => {
+      // Filter by online status if enabled
+      if (showOnlineOnly) {
+        return onlineUsers.includes(user._id);
+      }
+      return true;
+    });
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <aside className="h-full w-20 lg:w-72 border-r border-[#3b3346] bg-[#2a2434] flex flex-col transition-all duration-200 text-zinc-100">
+    <aside className="h-full w-20 lg:w-72 border-r border-[#3b3346] bg-[#2a2434] flex flex-col transition-none text-zinc-100 flex-shrink-0">
       <div className="border-b border-[#3b3346] w-full p-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -123,20 +139,35 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* Online filter toggle */}
-        <div className="mt-3 hidden lg:flex items-center gap-2">
-          <label className="cursor-pointer flex items-center gap-2">
+        {/* Search and Online filter toggle */}
+        <div className="mt-3 hidden lg:flex flex-col gap-3">
+          {/* Search input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
             <input
-              type="checkbox"
-              checked={showOnlineOnly}
-              onChange={(e) => setShowOnlineOnly(e.target.checked)}
-              className="checkbox checkbox-sm [--chkbg:#6d55e6] [--chkfg:#fff] border-[#3b3346]"
+              type="text"
+              placeholder="Search contacts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-[#3b3346] border border-zinc-600/50 rounded-lg text-zinc-100 placeholder-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:border-violet-400/50 transition-all"
             />
-            <span className="text-sm text-zinc-300">Show online only</span>
-          </label>
-          <span className="text-xs text-zinc-500">
-            ({onlineUsers.length - 1} online)
-          </span>
+          </div>
+
+          {/* Online filter */}
+          <div className="flex items-center justify-between">
+            <label className="cursor-pointer flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showOnlineOnly}
+                onChange={(e) => setShowOnlineOnly(e.target.checked)}
+                className="checkbox checkbox-sm [--chkbg:#6d55e6] [--chkfg:#fff] border-[#3b3346]"
+              />
+              <span className="text-sm text-zinc-300">Show online only</span>
+            </label>
+            <span className="text-xs text-zinc-500">
+              ({onlineUsers.length - 1} online)
+            </span>
+          </div>
         </div>
       </div>
 
