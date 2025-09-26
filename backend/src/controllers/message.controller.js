@@ -216,6 +216,9 @@ function hasIndicTransliterationPatterns(text) {
     /\b(nānu|nanage|tumbā|kōpa|khūshi|bēku|mādi|iddēne|alliddēne|sākāgide)\b/i,
     // Common Kannada transliteration patterns
     /\b(kopadalli|kopadalliddene|khushialli|santoshavagi|sakagide)\b/i,
+    // Phone/communication related Kannada patterns
+    /\b(eke|phone|yettalilla|ettilla|nenne)\b/i,
+    /\b(eke\s+phone\s+yettalilla)\b/i,
   ];
 
   const hindi_patterns = [
@@ -223,13 +226,21 @@ function hasIndicTransliterationPatterns(text) {
     /\b(samaj|dekh|sun|bol|kar|hai|nahin|nahi|maloom|pata)\b/i,
   ];
 
-  return [...kannada_patterns, ...hindi_patterns].some((pattern) =>
-    pattern.test(text)
-  );
+  return [...kannada_patterns, ...hindi_patterns].some((pattern) => {
+    const matches = pattern.test(text);
+    if (matches) {
+      console.log(
+        `🎯 Indic pattern matched: "${text}" - Pattern: ${pattern.source}`
+      );
+    }
+    return matches;
+  });
 }
 
 // Function to preprocess Kannada transliteration for better translation
 function preprocessKannadaTransliteration(text) {
+  console.log(`🔍 Preprocessing Kannada text: "${text}"`);
+
   const kannadaMappings = {
     // Common problematic Kannada transliterations
     kopadalliddene: "very angry I am",
@@ -251,13 +262,27 @@ function preprocessKannadaTransliteration(text) {
     "tumba chenagi": "very good",
     "tumba khushi": "very happy",
     "tumba kopa": "very angry",
+    // Phone related expressions
+    "eke phone yettalilla nenne": "why didn't you answer the phone",
+    "phone yettalilla": "didn't answer phone",
+    "phone ettilla": "didn't pick up phone",
+    "call ettilla": "didn't take the call",
   };
 
-  let processedText = text.toLowerCase();
+  let processedText = text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .trim(); // Remove punctuation
+  console.log(`🔍 Cleaned text for matching: "${processedText}"`);
 
   // Check for exact matches first
   for (const [kannada, english] of Object.entries(kannadaMappings)) {
-    if (processedText.includes(kannada.toLowerCase())) {
+    const cleanKannada = kannada
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "")
+      .trim();
+    console.log(`🔍 Checking: "${processedText}" contains "${cleanKannada}"?`);
+    if (processedText.includes(cleanKannada)) {
       console.log(`Found Kannada mapping: "${kannada}" -> "${english}"`);
       return english;
     }
@@ -284,6 +309,12 @@ function preprocessKannadaTransliteration(text) {
     bekku: "need",
     namaskara: "hello",
     dhanyavada: "thank you",
+    // Phone related words
+    eke: "why",
+    phone: "phone",
+    yettalilla: "didn't answer",
+    ettilla: "didn't pick up",
+    nenne: "you",
   };
 
   let hasKannadaWords = false;
@@ -337,6 +368,7 @@ function analyzeContextualSentiment(text) {
     /\b(where are you|where r u|where ru)\b/i,
     /\b(how are you|how r u|how ru|how u doing|sup|wassup)\b/i,
     /\b(what's up|whats up|what up|wats up)\b/i,
+    /\b(what's going on|whats going on|what going on|whats happening|what happening)\b/i,
     /\b(when are you|when r u|when ru)\b/i,
     /\b(who are you|who r u|who ru)\b/i,
 
@@ -716,7 +748,7 @@ async function analyzeMessage(text) {
     // Adjusted thresholds for better accuracy based on observed patterns
     // More conservative thresholds to reduce false positives/negatives
     if (score >= 0.3) return "POSITIVE"; // Increased from 0.2 to 0.3
-    if (score <= -0.3) return "NEGATIVE"; // Decreased from -0.2 to -0.3
+    if (score <= -0.4) return "NEGATIVE"; // Made more strict: -0.4 instead of -0.3
 
     // Handle edge cases in the neutral zone more carefully
     if (score > 0.1 && score < 0.3) {
@@ -732,7 +764,7 @@ async function analyzeMessage(text) {
       }
     }
 
-    if (score < -0.1 && score > -0.3) {
+    if (score < -0.1 && score > -0.4) {
       // Slightly negative but not clearly negative - check for empathy/concern
       if (
         /\b(sorry|oh no|concerned|worried)\b/i.test(textToAnalyze) &&
