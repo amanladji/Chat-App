@@ -32,6 +32,8 @@ const ChatContainer = () => {
     selectedUser,
     deleteMessage, // Add deleteMessage to destructured values
     deleteMessages, // Add bulk delete function
+    subscribeToMessages,
+    unsubscribeFromMessages,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -280,6 +282,9 @@ const ChatContainer = () => {
   useEffect(() => {
     getMessages(selectedUser._id);
 
+    // Subscribe to socket events for message deletion
+    subscribeToMessages();
+
     // Clear multi-select state when changing users
     setIsMultiSelectMode(false);
     setSelectedMessages(new Set());
@@ -287,8 +292,16 @@ const ChatContainer = () => {
     // Reset the message count ref for the new conversation
     prevMessageCountRef.current = 0;
 
-    // No need to return cleanup since we're not subscribing here anymore
-  }, [selectedUser._id, getMessages]);
+    // Cleanup subscription when component unmounts or user changes
+    return () => {
+      unsubscribeFromMessages();
+    };
+  }, [
+    selectedUser._id,
+    getMessages,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+  ]);
 
   useEffect(() => {
     // Only scroll when new messages are truly added (count increases)
