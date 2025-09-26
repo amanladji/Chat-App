@@ -559,7 +559,7 @@ const ChatContainer = () => {
 
       {/* --- NEW STATS MODAL RENDER --- */}
       {showStatsModal && (
-        <SentimentStats onClose={() => setShowStatsModal(false)} />
+        <SentimentStats isOpen={showStatsModal} onClose={() => setShowStatsModal(false)} />
       )}
 
       {/* Context Menu */}

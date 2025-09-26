@@ -1,7 +1,8 @@
-import { BarChart2 } from "lucide-react";
+import { BarChart2, TrendingUp } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
+import SentimentLineGraph from "./SentimentLineGraph";
 
 const SENTIMENT_CONFIG = {
   POSITIVE: { emoji: "😊", color: "text-success" },
@@ -36,15 +37,30 @@ const StatCard = ({ title, stats }) => {
   );
 };
 
-const SentimentStats = ({ onClose }) => {
+const SentimentStats = ({ onClose, isOpen = true }) => {
   const { selectedUser, getSentimentStats, stats, isStatsLoading } = useChatStore();
   const { authUser } = useAuthStore();
+  const [showLineGraph, setShowLineGraph] = useState(false);
 
   useEffect(() => {
     if (selectedUser) {
       getSentimentStats(selectedUser._id);
     }
   }, [selectedUser, getSentimentStats]);
+
+  // If line graph is showing, render it instead
+  if (showLineGraph) {
+    return (
+      <SentimentLineGraph
+        isOpen={showLineGraph}
+        onClose={onClose}
+        onBack={() => setShowLineGraph(false)}
+      />
+    );
+  }
+
+  // Don't render if not open
+  if (!isOpen) return null;
 
   return (
     <div
@@ -68,9 +84,42 @@ const SentimentStats = ({ onClose }) => {
         {isStatsLoading && <div className='text-center p-8'>Loading statistics...</div>}
 
         {stats && !isStatsLoading && (
-          <div className='flex flex-col md:flex-row gap-4'>
-            <StatCard title={`Your Messages to ${selectedUser.fullName.split(" ")[0]}`} stats={stats.myStats} />
-            <StatCard title={`${selectedUser.fullName.split(" ")[0]}'s Messages to You`} stats={stats.theirStats} />
+          <div className='space-y-4'>
+            <div className='flex flex-col md:flex-row gap-4'>
+              <StatCard title={`Your Messages to ${selectedUser.fullName.split(" ")[0]}`} stats={stats.myStats} />
+              <StatCard title={`${selectedUser.fullName.split(" ")[0]}'s Messages to You`} stats={stats.theirStats} />
+            </div>
+            
+            {/* Sentiment Line Graph Button */}
+            <div className='border-t border-base-300 pt-4'>
+              <div className='flex justify-center'>
+                <button 
+                  className='btn btn-primary gap-2 btn-wide'
+                  onClick={() => setShowLineGraph(true)}
+                >
+                  <TrendingUp size={18} />
+                  View Sentiment Over Time
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Show button even when no stats available */}
+        {(!stats || (stats && Object.keys(stats.myStats || {}).length === 0 && Object.keys(stats.theirStats || {}).length === 0)) && !isStatsLoading && (
+          <div className='space-y-4'>
+            <div className='text-center p-8'>
+              <p className='text-base-content/60 mb-4'>No sentiment data available yet.</p>
+              <p className='text-sm text-base-content/40 mb-6'>Start chatting to see sentiment analysis!</p>
+              
+              <button 
+                className='btn btn-primary gap-2'
+                onClick={() => setShowLineGraph(true)}
+              >
+                <TrendingUp size={18} />
+                View Sentiment Over Time
+              </button>
+            </div>
           </div>
         )}
       </div>
