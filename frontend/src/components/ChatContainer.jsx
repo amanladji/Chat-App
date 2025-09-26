@@ -325,18 +325,30 @@ const ChatContainer = () => {
         shouldScrollToBottomRef.current ||
         prevMessageCountRef.current === 0
       ) {
-        // Use setTimeout to ensure DOM is fully rendered
-        setTimeout(() => {
+        // Use multiple timeouts with increasing delays for server compatibility
+        const scrollToBottom = () => {
           if (messageEndRef.current) {
             messageEndRef.current.scrollIntoView({ behavior: "instant" });
           }
-        }, 100);
+        };
+
+        // Multiple attempts with increasing delays for server environments
+        setTimeout(scrollToBottom, 100);
+        setTimeout(scrollToBottom, 300);
+        setTimeout(scrollToBottom, 500);
+
         // Reset the flag after scrolling
-        shouldScrollToBottomRef.current = false;
+        setTimeout(() => {
+          shouldScrollToBottomRef.current = false;
+        }, 600);
       }
       // If new messages were truly added, scroll smoothly
       else if (currentMessageCount > prevMessageCountRef.current) {
-        messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+        setTimeout(() => {
+          if (messageEndRef.current) {
+            messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+          }
+        }, 100);
       }
     }
 
@@ -347,11 +359,17 @@ const ChatContainer = () => {
   // Additional useEffect to ensure scroll to bottom on component mount
   useEffect(() => {
     if (messages?.length > 0 && messageEndRef.current) {
-      setTimeout(() => {
+      // Multiple attempts with longer delays for server environments
+      const scrollToBottom = () => {
         if (messageEndRef.current) {
           messageEndRef.current.scrollIntoView({ behavior: "instant" });
         }
-      }, 200);
+      };
+
+      setTimeout(scrollToBottom, 200);
+      setTimeout(scrollToBottom, 400);
+      setTimeout(scrollToBottom, 600);
+      setTimeout(scrollToBottom, 1000); // Extra delay for slower server response
     }
   }, [messages?.length]);
 
@@ -361,13 +379,21 @@ const ChatContainer = () => {
       if (!document.hidden && messages?.length > 0) {
         // Set flag to force scroll to bottom
         shouldScrollToBottomRef.current = true;
-        // Trigger scroll
-        setTimeout(() => {
+
+        // Multiple scroll attempts with increasing delays for server compatibility
+        const scrollToBottom = () => {
           if (messageEndRef.current && shouldScrollToBottomRef.current) {
             messageEndRef.current.scrollIntoView({ behavior: "instant" });
-            shouldScrollToBottomRef.current = false;
           }
-        }, 100);
+        };
+
+        setTimeout(scrollToBottom, 100);
+        setTimeout(scrollToBottom, 300);
+        setTimeout(scrollToBottom, 500);
+        setTimeout(() => {
+          scrollToBottom();
+          shouldScrollToBottomRef.current = false;
+        }, 800);
       }
     };
 
