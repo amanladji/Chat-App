@@ -11,9 +11,13 @@ const HomePage = () => {
 
   // Subscribe to all messages globally for unread tracking
   useEffect(() => {
+    console.log("🏠 HomePage mounting - setting up message subscriptions");
     subscribeToAllMessages();
 
-    return () => unsubscribeFromAllMessages();
+    return () => {
+      console.log("🏠 HomePage unmounting - cleaning up subscriptions");
+      unsubscribeFromAllMessages();
+    };
   }, [subscribeToAllMessages, unsubscribeFromAllMessages]);
 
   return (
