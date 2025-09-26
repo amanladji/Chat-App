@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { Camera, Mail, User, Edit3, Check, X } from "lucide-react";
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
-  const navigate = useNavigate();
   const [selectedImg, setSelectedImg] = useState(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState(authUser?.fullName || "");
@@ -45,16 +43,7 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen pt-20 bg-gradient-to-b from-[#3c334b] to-[#2a2336]">
       <div className="max-w-2xl mx-auto p-4 py-8 min-h-[calc(100vh-5rem)]">
-        <div className="bg-[#1f1a27] rounded-3xl p-8 space-y-8 shadow-[0_8px_40px_-8px_rgba(0,0,0,0.45)] ring-1 ring-white/5 relative">
-          {/* Close button */}
-          <button
-            onClick={() => navigate("/")}
-            className="absolute top-6 right-6 p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-colors"
-            aria-label="Close profile"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
+        <div className="bg-[#1f1a27] rounded-3xl p-8 space-y-8 shadow-[0_8px_40px_-8px_rgba(0,0,0,0.45)] ring-1 ring-white/5">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-zinc-100">Profile</h1>
             <p className="mt-2 text-zinc-400">Your profile information</p>
