@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, MessageSquare, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
@@ -17,10 +17,12 @@ const Navbar = () => {
               to="/"
               className="flex items-center gap-2.5 hover:opacity-80 transition-all"
             >
-              <div className="size-9 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-violet-400" />
-              </div>
-              <h1 className="text-lg font-bold text-zinc-100">Flow</h1>
+              <img 
+                src="/sentio-logo.png" 
+                alt="Sentio Logo" 
+                className="w-9 h-9 rounded-lg"
+              />
+              <h1 className="text-lg font-bold text-zinc-100">Sentio</h1>
             </Link>
           </div>
 
