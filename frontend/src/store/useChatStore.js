@@ -134,8 +134,88 @@ export const useChatStore = create((set, get) => ({
 
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
+    const currentUserId = useAuthStore.getState().authUser._id;
 
-    // Only subscribe to message deletion events here since newMessage is handled globally
+    if (!socket) {
+      console.error("❌ No socket connection in subscribeToMessages");
+      return;
+    }
+
+    console.log("📡 Setting up unified message subscription");
+
+    // Single unified handler for all new messages
+    const handleNewMessage = (newMessage) => {
+      console.log("📨 Received new message:", newMessage);
+      const { selectedUser, unreadMessages } = get();
+      const isMessageFromMe = newMessage.senderId === currentUserId;
+
+      console.log("📝 Message details:", {
+        from: newMessage.senderId,
+        to: newMessage.receiverId,
+        currentUser: currentUserId,
+        selectedUser: selectedUser?._id,
+        isFromMe: isMessageFromMe,
+      });
+
+      // Real-time chat update: Add to current chat if it's relevant
+      if (selectedUser) {
+        const isRelevantToCurrentChat =
+          (newMessage.senderId === selectedUser._id &&
+            newMessage.receiverId === currentUserId) ||
+          (newMessage.senderId === currentUserId &&
+            newMessage.receiverId === selectedUser._id);
+
+        if (isRelevantToCurrentChat) {
+          console.log("💬 Adding message to current chat view");
+          set({
+            messages: [...get().messages, newMessage],
+          });
+        }
+      }
+
+      // Unread tracking: Only for messages from others to current user
+      if (!isMessageFromMe && newMessage.receiverId === currentUserId) {
+        const senderId = newMessage.senderId;
+
+        // Only increment unread count if this message is NOT for the currently selected chat
+        if (!selectedUser || selectedUser._id !== senderId) {
+          const newUnreadMessages = {
+            ...unreadMessages,
+            [senderId]: (unreadMessages[senderId] || 0) + 1,
+          };
+          console.log("🔴 Updating unread messages:", newUnreadMessages);
+
+          // Save to localStorage for persistence with error handling
+          try {
+            if (typeof Storage !== "undefined") {
+              localStorage.setItem(
+                "chatApp_unreadMessages",
+                JSON.stringify(newUnreadMessages)
+              );
+            }
+          } catch (error) {
+            console.warn(
+              "Failed to save unread messages to localStorage:",
+              error
+            );
+          }
+
+          set({
+            unreadMessages: newUnreadMessages,
+          });
+        } else {
+          console.log(
+            "📖 Message is for current chat, not incrementing unread count"
+          );
+        }
+      }
+    };
+
+    // Remove any existing listeners and add the unified handler
+    socket.off("newMessage");
+    socket.on("newMessage", handleNewMessage);
+
+    // Subscribe to message deletion events
     socket.on("messageDeleted", (deletionData) => {
       const { messageId, deleteType, deletedBy, deletedForEveryone } =
         deletionData;
@@ -189,69 +269,40 @@ export const useChatStore = create((set, get) => ({
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
+    console.log("🛑 Unsubscribing from chat messages");
     socket.off("newMessage");
-    socket.off("messageDeleted"); // Unsubscribe from deletion events
-    socket.off("mentalHealthCompanion"); // Unsubscribe from companion events
+    socket.off("messageDeleted");
+    socket.off("mentalHealthCompanion");
   },
 
-  // Global message subscription for unread tracking
+  // Global message subscription - now only handles initialization and connection monitoring
   subscribeToAllMessages: () => {
     const socket = useAuthStore.getState().socket;
     const currentUserId = useAuthStore.getState().authUser._id;
 
-    console.log("🔄 Setting up global message subscription");
+    console.log("🔄 Initializing global message handling");
     console.log("🔌 Socket available:", !!socket);
     console.log("👤 Current user:", currentUserId);
 
     if (!socket) {
       console.error("❌ No socket connection available");
+      // Retry after a delay for server environments
+      setTimeout(() => {
+        console.log("🔄 Retrying global message initialization...");
+        get().subscribeToAllMessages();
+      }, 2000);
       return;
     }
 
-    // Remove any existing listeners first to prevent duplicates
-    socket.off("newMessage");
+    // Just ensure socket is connected - actual message handling is done by subscribeToMessages
+    if (!socket.connected) {
+      console.warn("⚠️ Socket not connected, attempting to reconnect...");
+      socket.connect();
+    }
 
-    socket.on("newMessage", (newMessage) => {
-      console.log("📨 Received new message:", newMessage);
-      const { selectedUser, unreadMessages } = get();
-      const isMessageFromMe = newMessage.senderId === currentUserId;
-
-      console.log("📝 Message details:", {
-        from: newMessage.senderId,
-        currentUser: currentUserId,
-        selectedUser: selectedUser?._id,
-        isFromMe: isMessageFromMe,
-      });
-
-      if (!isMessageFromMe) {
-        const senderId = newMessage.senderId;
-
-        if (selectedUser && selectedUser._id === senderId) {
-          // Add message to current chat if it's from the selected user
-          console.log("💬 Adding message to current chat");
-          set({
-            messages: [...get().messages, newMessage],
-          });
-        } else {
-          // Increment unread count for other users
-          const newUnreadMessages = {
-            ...unreadMessages,
-            [senderId]: (unreadMessages[senderId] || 0) + 1,
-          };
-          console.log("🔴 Updating unread messages:", newUnreadMessages);
-
-          // Save to localStorage for persistence
-          localStorage.setItem(
-            "chatApp_unreadMessages",
-            JSON.stringify(newUnreadMessages)
-          );
-
-          set({
-            unreadMessages: newUnreadMessages,
-          });
-        }
-      }
-    });
+    console.log("✅ Global message handling initialized");
   },
 
   unsubscribeFromAllMessages: () => {
@@ -271,11 +322,17 @@ export const useChatStore = create((set, get) => ({
       delete newUnreadMessages[userId];
       console.log("📋 Updated unread messages:", newUnreadMessages);
 
-      // Save to localStorage for persistence
-      localStorage.setItem(
-        "chatApp_unreadMessages",
-        JSON.stringify(newUnreadMessages)
-      );
+      // Save to localStorage for persistence with error handling
+      try {
+        if (typeof Storage !== "undefined") {
+          localStorage.setItem(
+            "chatApp_unreadMessages",
+            JSON.stringify(newUnreadMessages)
+          );
+        }
+      } catch (error) {
+        console.warn("Failed to save unread messages to localStorage:", error);
+      }
 
       set({ unreadMessages: newUnreadMessages });
     }
@@ -291,19 +348,23 @@ export const useChatStore = create((set, get) => ({
   initializeUnreadCounts: async () => {
     console.log("🚀 Initializing unread counts");
 
-    // Try to restore unread counts from localStorage
+    // Try to restore unread counts from localStorage with error handling
     try {
-      const savedUnreadMessages = localStorage.getItem(
-        "chatApp_unreadMessages"
-      );
-      if (savedUnreadMessages) {
-        const parsedUnreadMessages = JSON.parse(savedUnreadMessages);
-        console.log(
-          "📱 Restored unread counts from localStorage:",
-          parsedUnreadMessages
+      if (typeof Storage !== "undefined") {
+        const savedUnreadMessages = localStorage.getItem(
+          "chatApp_unreadMessages"
         );
-        set({ unreadMessages: parsedUnreadMessages });
-        return;
+        if (savedUnreadMessages) {
+          const parsedUnreadMessages = JSON.parse(savedUnreadMessages);
+          console.log(
+            "📱 Restored unread counts from localStorage:",
+            parsedUnreadMessages
+          );
+          set({ unreadMessages: parsedUnreadMessages });
+          return;
+        }
+      } else {
+        console.warn("localStorage not available in this environment");
       }
     } catch (error) {
       console.warn("Failed to restore unread counts from localStorage:", error);

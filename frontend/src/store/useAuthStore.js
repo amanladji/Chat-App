@@ -87,16 +87,36 @@ export const useAuthStore = create((set, get) => ({
     const { authUser } = get();
     if (!authUser || get().socket?.connected) return;
 
+    console.log("🔌 Connecting socket for user:", authUser._id);
+    console.log("🌐 BASE_URL:", BASE_URL);
+
     const socket = io(BASE_URL, {
       query: {
         userId: authUser._id,
       },
+      // Add reconnection options for server environments
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+      timeout: 20000,
     });
-    socket.connect();
 
     set({ socket: socket });
 
+    socket.on("connect", () => {
+      console.log("✅ Socket connected successfully");
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("❌ Socket disconnected:", reason);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("🔴 Socket connection error:", error);
+    });
+
     socket.on("getOnlineUsers", (userIds) => {
+      console.log("👥 Online users updated:", userIds);
       set({ onlineUsers: userIds });
     });
 

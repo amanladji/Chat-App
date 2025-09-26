@@ -1,4 +1,5 @@
 import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../store/useAuthStore";
 import { useEffect } from "react";
 
 import Sidebar from "../components/Sidebar";
@@ -8,17 +9,45 @@ import ChatContainer from "../components/ChatContainer";
 const HomePage = () => {
   const { selectedUser, subscribeToAllMessages, unsubscribeFromAllMessages } =
     useChatStore();
+  const { socket, authUser } = useAuthStore();
 
   // Subscribe to all messages globally for unread tracking
   useEffect(() => {
     console.log("🏠 HomePage mounting - setting up message subscriptions");
-    subscribeToAllMessages();
+
+    // Function to attempt subscription
+    const attemptSubscription = () => {
+      if (socket && authUser) {
+        console.log("✅ Socket and user available, subscribing to messages");
+        subscribeToAllMessages();
+      } else {
+        console.log("⏳ Waiting for socket connection and auth...", {
+          hasSocket: !!socket,
+          hasAuth: !!authUser,
+          socketConnected: socket?.connected,
+        });
+        // Retry after a delay for server environments
+        setTimeout(attemptSubscription, 1000);
+      }
+    };
+
+    attemptSubscription();
 
     return () => {
       console.log("🏠 HomePage unmounting - cleaning up subscriptions");
       unsubscribeFromAllMessages();
     };
-  }, [subscribeToAllMessages, unsubscribeFromAllMessages]);
+  }, [subscribeToAllMessages, unsubscribeFromAllMessages, socket, authUser]);
+
+  // Additional effect to handle socket connection changes
+  useEffect(() => {
+    if (socket?.connected && authUser) {
+      console.log(
+        "🔌 Socket reconnected, re-establishing message subscription"
+      );
+      subscribeToAllMessages();
+    }
+  }, [socket?.connected, authUser, subscribeToAllMessages]);
 
   return (
     <div className="h-screen bg-gradient-to-b from-[#3c334b] to-[#2a2336] pt-16">
