@@ -187,41 +187,62 @@ const ChatContainer = () => {
     });
   };
 
-  // Handle long press start
+  // Handle long press start - improved for mobile
   const handleLongPressStart = (message, e) => {
-    // Prevent default behavior that might interfere
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    // Store initial touch/mouse position for movement detection
+    const startX = e.touches ? e.touches[0].clientX : e.clientX;
+    const startY = e.touches ? e.touches[0].clientY : e.clientY;
 
     const timer = setTimeout(() => {
+      // Only show context menu if it's a true long press (no significant movement)
+      const isMobile = window.innerWidth < 768;
+      const x = isMobile
+        ? window.innerWidth / 2 - 70
+        : e.touches
+        ? e.touches[0].clientX
+        : e.clientX;
+      const y = isMobile
+        ? window.innerHeight / 2 - 50
+        : e.touches
+        ? e.touches[0].clientY
+        : e.clientY;
+
       setContextMenu({
         visible: true,
-        x: window.innerWidth / 2 - 60, // Center horizontally
-        y: window.innerHeight / 2 - 50, // Center vertically
+        x,
+        y,
         messageId: message._id,
         messageText: message.text || "Image message",
       });
-      // Clear timer after showing context menu
       setLongPressTimer(null);
-    }, 500); // 500ms long press
+    }, 800); // Increased to 800ms for mobile - less accidental triggers
 
-    setLongPressTimer(timer);
+    setLongPressTimer({ timer, startX, startY });
   };
 
-  // Handle long press end - with better event handling
-  const handleLongPressEnd = (e) => {
-    // Prevent default behavior
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    // Only clear the timer if context menu is not visible
-    if (longPressTimer && !contextMenu.visible) {
-      clearTimeout(longPressTimer);
+  // Handle long press end - improved event handling
+  const handleLongPressEnd = () => {
+    if (longPressTimer && longPressTimer.timer) {
+      clearTimeout(longPressTimer.timer);
       setLongPressTimer(null);
+    }
+  };
+
+  // Handle touch/mouse move - cancel long press if user is scrolling/dragging
+  const handleLongPressMove = (e) => {
+    if (longPressTimer && longPressTimer.timer) {
+      const currentX = e.touches ? e.touches[0].clientX : e.clientX;
+      const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+      const threshold = 10; // pixels
+
+      // If user moved more than threshold, cancel long press
+      if (
+        Math.abs(currentX - longPressTimer.startX) > threshold ||
+        Math.abs(currentY - longPressTimer.startY) > threshold
+      ) {
+        clearTimeout(longPressTimer.timer);
+        setLongPressTimer(null);
+      }
     }
   };
 
@@ -276,8 +297,8 @@ const ChatContainer = () => {
   // Cleanup long press timer on unmount
   useEffect(() => {
     return () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
+      if (longPressTimer && longPressTimer.timer) {
+        clearTimeout(longPressTimer.timer);
       }
     };
   }, [longPressTimer]);
@@ -463,21 +484,19 @@ const ChatContainer = () => {
                     }
                   }
                 }}
-                onMouseUp={(e) => {
+                onMouseUp={() => {
                   if (!isMultiSelectMode) {
-                    // Only handle left mouse button
-                    if (e.button === 0) {
-                      handleLongPressEnd(e);
-                    }
+                    handleLongPressEnd();
+                  }
+                }}
+                onMouseMove={(e) => {
+                  if (!isMultiSelectMode) {
+                    handleLongPressMove(e);
                   }
                 }}
                 onMouseLeave={() => {
                   if (!isMultiSelectMode) {
-                    // Only cancel long press if context menu is not visible
-                    if (longPressTimer && !contextMenu.visible) {
-                      clearTimeout(longPressTimer);
-                      setLongPressTimer(null);
-                    }
+                    handleLongPressEnd();
                   }
                 }}
                 onTouchStart={(e) => {
@@ -485,14 +504,19 @@ const ChatContainer = () => {
                     handleLongPressStart(message, e);
                   }
                 }}
-                onTouchEnd={(e) => {
+                onTouchEnd={() => {
                   if (!isMultiSelectMode) {
-                    handleLongPressEnd(e);
+                    handleLongPressEnd();
                   }
                 }}
-                onTouchCancel={(e) => {
+                onTouchMove={(e) => {
                   if (!isMultiSelectMode) {
-                    handleLongPressEnd(e);
+                    handleLongPressMove(e);
+                  }
+                }}
+                onTouchCancel={() => {
+                  if (!isMultiSelectMode) {
+                    handleLongPressEnd();
                   }
                 }}
                 onDragStart={(e) => e.preventDefault()} // Prevent drag during long press
@@ -550,6 +574,7 @@ const ChatContainer = () => {
         x={contextMenu.x}
         y={contextMenu.y}
         isVisible={contextMenu.visible}
+        messageText={contextMenu.messageText}
         onClose={closeContextMenu}
         onDelete={() =>
           showDeleteConfirmation(contextMenu.messageId, contextMenu.messageText)
