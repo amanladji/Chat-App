@@ -151,7 +151,7 @@ const LoginPage = () => {
                     {errors.password}
                   </p>
                 )}
-                <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center mt-3">
                   <label className="flex items-center gap-2 text-xs text-zinc-400 select-none">
                     <input
                       type="checkbox"
@@ -163,12 +163,6 @@ const LoginPage = () => {
                     />
                     <span>Remember me</span>
                   </label>
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-violet-400 hover:text-violet-300 underline-offset-4 hover:underline"
-                  >
-                    Forgot password?
-                  </button>
                 </div>
               </div>
 

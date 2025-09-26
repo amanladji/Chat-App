@@ -7,7 +7,6 @@ import ProfilePage from "./pages/ProfilePage";
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
-import { useThemeStore } from "./store/useThemeStore";
 import { useEffect } from "react";
 
 import { Loader } from "lucide-react";
@@ -15,7 +14,6 @@ import { Toaster } from "react-hot-toast";
 
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
-  const { theme } = useThemeStore();
   const location = useLocation();
 
   console.log({ onlineUsers });
@@ -34,7 +32,7 @@ const App = () => {
     );
 
   return (
-    <div data-theme={theme}>
+    <div className="min-h-screen bg-gradient-to-b from-[#3c334b] to-[#2a2336]">
       {!(location.pathname === "/login" || location.pathname === "/signup") && (
         <Navbar />
       )}
