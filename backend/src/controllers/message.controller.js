@@ -170,6 +170,7 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 import { LanguageServiceClient } from "@google-cloud/language";
 import { Translate } from "@google-cloud/translate/build/src/v2/index.js";
 import mongoose from "mongoose";
+import mentalHealthService from "../services/mentalHealthService.js";
 
 const languageClient = new LanguageServiceClient();
 const translate = new Translate();
@@ -1306,6 +1307,44 @@ export const sendMessage = async (req, res) => {
       sentiment: analysisResult,
     });
     await newMessage.save();
+
+    // Mental Health Companion Integration
+    try {
+      if (analysisResult) {
+        // Only analyze if we have sentiment data
+        const patternAnalysis =
+          await mentalHealthService.analyzeSentimentPattern(senderId);
+
+        if (patternAnalysis.shouldTrigger) {
+          console.log(
+            `🧠 Mental health companion triggered for user: ${senderId}`
+          );
+
+          // Get supportive message
+          const companionResponse = mentalHealthService.getSupportiveMessage(
+            patternAnalysis.analysis
+          );
+
+          // Send companion message to sender only via socket
+          const senderSocketId = getReceiverSocketId(senderId);
+          if (senderSocketId) {
+            io.to(senderSocketId).emit("mentalHealthCompanion", {
+              message: companionResponse.message,
+              type: companionResponse.type,
+              timestamp: companionResponse.timestamp,
+              triggerId: `companion-${Date.now()}`,
+            });
+          }
+        }
+      }
+    } catch (companionError) {
+      // Don't let companion errors affect message sending
+      console.error(
+        "Error in mental health companion:",
+        companionError.message
+      );
+    }
+
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
@@ -1632,6 +1671,106 @@ export const deleteMessages = async (req, res) => {
     });
   } catch (error) {
     console.log("Error in deleteMessages controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Mental Health Companion API endpoints
+export const getMentalHealthSettings = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const settings = await mentalHealthService.getUserSettings(userId);
+    res.status(200).json(settings);
+  } catch (error) {
+    console.log("Error in getMentalHealthSettings controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const updateMentalHealthSettings = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const settings = req.body;
+    const updatedSettings = await mentalHealthService.updateUserSettings(
+      userId,
+      settings
+    );
+    res.status(200).json(updatedSettings);
+  } catch (error) {
+    console.log(
+      "Error in updateMentalHealthSettings controller: ",
+      error.message
+    );
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getMentalHealthStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const stats = await mentalHealthService.getUserStats(userId);
+    res.status(200).json(stats);
+  } catch (error) {
+    console.log("Error in getMentalHealthStats controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const resetMentalHealthCooldown = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const result = await mentalHealthService.resetCooldown(userId);
+
+    if (result) {
+      res.status(200).json({ message: "Cooldown reset successfully" });
+    } else {
+      res
+        .status(404)
+        .json({ error: "No mental health tracking found for user" });
+    }
+  } catch (error) {
+    console.log(
+      "Error in resetMentalHealthCooldown controller: ",
+      error.message
+    );
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Force test trigger for mental health companion
+export const testMentalHealthCompanion = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const companionResponse = await mentalHealthService.forceTestTrigger(
+      userId
+    );
+
+    if (companionResponse) {
+      // Send companion message to sender only via socket
+      const senderSocketId = getReceiverSocketId(userId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("mentalHealthCompanion", {
+          message: companionResponse.message,
+          type: companionResponse.type,
+          timestamp: companionResponse.timestamp,
+          triggerId: `test-companion-${Date.now()}`,
+        });
+      }
+
+      res.status(200).json({
+        message: "Test companion message sent",
+        companionResponse,
+      });
+    } else {
+      res.status(500).json({
+        error: "Failed to generate test companion message",
+      });
+    }
+  } catch (error) {
+    console.log(
+      "Error in testMentalHealthCompanion controller: ",
+      error.message
+    );
     res.status(500).json({ error: "Internal server error" });
   }
 };

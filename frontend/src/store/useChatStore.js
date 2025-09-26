@@ -14,6 +14,8 @@ export const useChatStore = create((set, get) => ({
   isStatsLoading: false,
   // --- NEW STATE FOR UNREAD MESSAGES ---
   unreadMessages: {}, // Object to track unread count per user ID
+  // --- MENTAL HEALTH COMPANION STATE ---
+  mentalHealthCompanion: null, // Current companion message object
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -166,12 +168,30 @@ export const useChatStore = create((set, get) => ({
         );
       }
     });
+
+    // Listen for mental health companion messages
+    socket.on("mentalHealthCompanion", (companionData) => {
+      console.log(
+        "🧠 Received mental health companion message:",
+        companionData
+      );
+
+      // Set the companion message with visibility flag
+      set({
+        mentalHealthCompanion: {
+          ...companionData,
+          isVisible: true,
+          id: companionData.triggerId,
+        },
+      });
+    });
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
     socket.off("messageDeleted"); // Unsubscribe from deletion events
+    socket.off("mentalHealthCompanion"); // Unsubscribe from companion events
   },
 
   // Global message subscription for unread tracking
@@ -291,5 +311,45 @@ export const useChatStore = create((set, get) => ({
 
     // Fallback to empty state if no saved data or error
     set({ unreadMessages: {} });
+  },
+
+  // Mental Health Companion functions
+  dismissCompanionMessage: (triggerId) => {
+    console.log("🧠 Dismissing companion message:", triggerId);
+    set({ mentalHealthCompanion: null });
+  },
+
+  // Mental Health Settings functions
+  getMentalHealthSettings: async () => {
+    try {
+      const res = await axiosInstance.get("/messages/mental-health/settings");
+      return res.data;
+    } catch (error) {
+      console.error("Error fetching mental health settings:", error);
+      throw error;
+    }
+  },
+
+  updateMentalHealthSettings: async (settings) => {
+    try {
+      const res = await axiosInstance.put(
+        "/messages/mental-health/settings",
+        settings
+      );
+      return res.data;
+    } catch (error) {
+      console.error("Error updating mental health settings:", error);
+      throw error;
+    }
+  },
+
+  getMentalHealthStats: async () => {
+    try {
+      const res = await axiosInstance.get("/messages/mental-health/stats");
+      return res.data;
+    } catch (error) {
+      console.error("Error fetching mental health stats:", error);
+      throw error;
+    }
   },
 }));

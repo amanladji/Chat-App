@@ -9,6 +9,7 @@ import SentimentLineGraph from "./SentimentLineGraph"; // Import the sentiment l
 import MessageContextMenu from "./MessageContextMenu";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import BulkDeleteConfirmModal from "./BulkDeleteConfirmModal";
+import MentalHealthCompanion from "./MentalHealthCompanion"; // Import mental health companion
 
 // Helper function to get the correct color class
 const getSentimentColorClass = (sentiment) => {
@@ -34,6 +35,8 @@ const ChatContainer = () => {
     deleteMessages, // Add bulk delete function
     subscribeToMessages,
     unsubscribeFromMessages,
+    mentalHealthCompanion, // Add mental health companion state
+    dismissCompanionMessage, // Add companion dismiss function
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -559,8 +562,8 @@ const ChatContainer = () => {
 
       {/* --- SENTIMENT ANALYSIS GRAPH MODAL --- */}
       {showStatsModal && (
-        <SentimentLineGraph 
-          isOpen={showStatsModal} 
+        <SentimentLineGraph
+          isOpen={showStatsModal}
           onClose={() => setShowStatsModal(false)}
           onBack={() => setShowStatsModal(false)}
         />
@@ -607,6 +610,16 @@ const ChatContainer = () => {
         selectedMessages={bulkDeleteModal.selectedMessages}
         currentUserId={authUser?._id}
       />
+
+      {/* Mental Health Companion - Only visible to current user */}
+      {mentalHealthCompanion && mentalHealthCompanion.isVisible && (
+        <MentalHealthCompanion
+          message={mentalHealthCompanion.message}
+          type={mentalHealthCompanion.type}
+          triggerId={mentalHealthCompanion.id}
+          onDismiss={dismissCompanionMessage}
+        />
+      )}
     </div>
   );
 };
