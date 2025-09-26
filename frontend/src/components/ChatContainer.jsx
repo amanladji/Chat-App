@@ -35,6 +35,7 @@ const ChatContainer = () => {
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const prevMessageCountRef = useRef(0);
   const [selectedImage, setSelectedImage] = useState(null);
 
   // --- NEW STATE FOR STATS MODAL ---
@@ -145,8 +146,14 @@ const ChatContainer = () => {
 
   // Toggle multi-select mode
   const toggleMultiSelectMode = () => {
+    const wasInMultiSelectMode = isMultiSelectMode;
     setIsMultiSelectMode(!isMultiSelectMode);
     setSelectedMessages(new Set()); // Clear selections when toggling mode
+
+    // Prevent auto-scroll when toggling modes by updating the ref
+    if (!wasInMultiSelectMode && messages?.length > 0) {
+      prevMessageCountRef.current = messages.length;
+    }
   };
 
   // Toggle message selection
@@ -277,13 +284,25 @@ const ChatContainer = () => {
     setIsMultiSelectMode(false);
     setSelectedMessages(new Set());
 
+    // Reset the message count ref for the new conversation
+    prevMessageCountRef.current = 0;
+
     // No need to return cleanup since we're not subscribing here anymore
   }, [selectedUser._id, getMessages]);
 
   useEffect(() => {
-    if (messageEndRef.current && messages) {
+    // Only scroll when new messages are truly added (count increases)
+    const currentMessageCount = messages?.length || 0;
+
+    if (
+      messageEndRef.current &&
+      currentMessageCount > prevMessageCountRef.current
+    ) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
+
+    // Always update the count after checking
+    prevMessageCountRef.current = currentMessageCount;
   }, [messages]);
 
   // Cleanup long press timer on unmount
@@ -318,13 +337,13 @@ const ChatContainer = () => {
         onDeleteSelected={handleDeleteSelectedMessages}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Multi-select mode indicator */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+        {/* Multi-select mode indicator - positioned as overlay */}
         {isMultiSelectMode && (
-          <div className="sticky top-0 z-30 bg-[#3b3346]/80 border border-violet-400/30 rounded-lg p-3 mb-4 backdrop-blur-sm">
-            <div className="flex items-center gap-2 text-violet-400">
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-30 bg-[#3b3346]/95 border border-violet-400/30 rounded-lg px-4 py-2 backdrop-blur-sm shadow-lg">
+            <div className="flex items-center gap-2 text-violet-400 text-sm">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -337,35 +356,29 @@ const ChatContainer = () => {
                 />
               </svg>
               <span className="font-medium">
-                Multi-select mode - {selectedMessages.size} message
-                {selectedMessages.size !== 1 ? "s" : ""} selected
+                {selectedMessages.size} selected
               </span>
-            </div>
-            <div className="text-xs text-base-content/70 mt-1">
-              Click on messages to select/deselect them
+              {selectedMessages.size === 0 && (
+                <span className="text-xs text-violet-300/70 ml-1">
+                  • Click messages to select
+                </span>
+              )}
             </div>
           </div>
         )}
 
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const isMyMessage = message.senderId === authUser._id;
           const isSelected = selectedMessages.has(message._id);
+          const isLastMessage = index === messages.length - 1;
 
           return (
             <div
               key={message._id}
               className={`chat ${isMyMessage ? "chat-end" : "chat-start"} ${
                 isMultiSelectMode ? "relative cursor-pointer" : ""
-              } ${
-                isMultiSelectMode && isSelected
-                  ? "bg-primary/20 border border-primary/40 rounded-xl p-2 -m-2 shadow-lg transform scale-[1.02] transition-all duration-200"
-                  : ""
-              } ${
-                isMultiSelectMode && !isSelected
-                  ? "opacity-50 hover:opacity-75 hover:bg-base-200/30 rounded-xl p-2 -m-2 transition-all duration-200 relative"
-                  : ""
               }`}
-              ref={messageEndRef}
+              ref={isLastMessage ? messageEndRef : null}
               onClick={() => {
                 if (isMultiSelectMode) {
                   toggleMessageSelection(message._id);
@@ -375,61 +388,31 @@ const ChatContainer = () => {
               {/* Selection checkbox - show for all messages in multi-select mode */}
               {isMultiSelectMode && (
                 <div
-                  className={`absolute top-1/2 transform -translate-y-1/2 z-10 ${
-                    isMyMessage ? "-left-10" : "-right-10"
+                  className={`absolute top-1/2 transform -translate-y-1/2 z-20 ${
+                    isMyMessage ? "left-2" : "right-2"
                   }`}
                 >
                   <div
-                    className={`p-2 rounded-full transition-all duration-200 ${
+                    className={`p-1.5 rounded-full transition-all duration-200 ${
                       isSelected
-                        ? "bg-primary text-primary-content shadow-lg scale-110"
-                        : "bg-base-200 hover:bg-base-300"
+                        ? "bg-violet-500 text-white shadow-lg"
+                        : "bg-base-200/80 hover:bg-base-300/80 backdrop-blur-sm"
                     }`}
                   >
                     <input
                       type="checkbox"
-                      className={`checkbox checkbox-sm border-2 transition-all duration-200 ${
+                      className={`checkbox checkbox-xs border-2 transition-all duration-200 ${
                         isSelected
-                          ? "checkbox-primary border-primary-content"
-                          : "checkbox-ghost border-base-content/30 hover:border-primary"
+                          ? "checkbox-primary border-white"
+                          : "checkbox-ghost border-base-content/50 hover:border-violet-400"
                       }`}
                       checked={isSelected}
                       onChange={(e) => {
-                        e.stopPropagation(); // Prevent triggering parent click
+                        e.stopPropagation();
                         toggleMessageSelection(message._id);
                       }}
-                      onClick={(e) => e.stopPropagation()} // Also prevent click bubbling
+                      onClick={(e) => e.stopPropagation()}
                     />
-                  </div>
-                </div>
-              )}
-
-              {/* Overlay for non-selected messages in multi-select mode */}
-              {isMultiSelectMode && !isSelected && (
-                <div className="absolute inset-0 bg-base-content/10 rounded-xl pointer-events-none transition-opacity duration-200"></div>
-              )}
-
-              {/* Selection indicator badge for selected messages */}
-              {isMultiSelectMode && isSelected && (
-                <div
-                  className={`absolute -top-2 z-20 ${
-                    isMyMessage ? "-left-2" : "-right-2"
-                  }`}
-                >
-                  <div className="w-6 h-6 bg-violet-500 rounded-full flex items-center justify-center shadow-lg">
-                    <svg
-                      className="w-4 h-4 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
                   </div>
                 </div>
               )}
@@ -451,11 +434,11 @@ const ChatContainer = () => {
                   message.sentiment
                 )} cursor-pointer select-none transition-all duration-200 rounded-xl shadow-lg ${
                   isMultiSelectMode && isSelected
-                    ? "ring-4 ring-violet-400 ring-opacity-60 shadow-xl transform scale-[1.05] border-2 border-violet-400/50"
+                    ? "ring-2 ring-violet-400 ring-opacity-60 border border-violet-400/50"
                     : ""
                 } ${
                   isMultiSelectMode && !isSelected
-                    ? "hover:ring-2 hover:ring-violet-400/30 hover:shadow-md hover:transform hover:scale-[1.02]"
+                    ? "opacity-60 hover:opacity-80"
                     : ""
                 } ${!isMultiSelectMode ? "hover:shadow-sm" : ""}`}
                 onContextMenu={(e) => {
@@ -532,6 +515,9 @@ const ChatContainer = () => {
             </div>
           );
         })}
+
+        {/* Invisible element to maintain scroll position */}
+        <div ref={messageEndRef} />
       </div>
 
       <MessageInput />

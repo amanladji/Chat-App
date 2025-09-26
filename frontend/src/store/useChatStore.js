@@ -60,10 +60,10 @@ export const useChatStore = create((set, get) => ({
       await axiosInstance.delete(`/messages/${messageId}`, {
         data: { deleteType },
       });
-      // Remove the message from the local state immediately
-      set({
-        messages: get().messages.filter((message) => message._id !== messageId),
-      });
+
+      // Don't remove from local state immediately - wait for socket event
+      // This ensures consistency and proper handling of delete types
+
       const deleteText =
         deleteType === "forEveryone" ? "for everyone" : "for you";
       toast.success(`Message deleted ${deleteText}`);
@@ -78,12 +78,10 @@ export const useChatStore = create((set, get) => ({
       await axiosInstance.delete("/messages/bulk", {
         data: { messageIds, deleteType },
       });
-      // Remove all deleted messages from local state immediately
-      set({
-        messages: get().messages.filter(
-          (message) => !messageIds.includes(message._id)
-        ),
-      });
+
+      // Don't remove from local state immediately - wait for socket events
+      // This ensures consistency and proper handling of delete types
+
       const deleteText =
         deleteType === "forEveryone" ? "for everyone" : "for you";
       toast.success(`${messageIds.length} message(s) deleted ${deleteText}`);
@@ -110,11 +108,36 @@ export const useChatStore = create((set, get) => ({
 
     // Only subscribe to message deletion events here since newMessage is handled globally
     socket.on("messageDeleted", (deletionData) => {
-      const { messageId } = deletionData;
-      // Remove the deleted message from the local state
-      set({
-        messages: get().messages.filter((message) => message._id !== messageId),
+      const { messageId, deleteType, deletedBy, deletedForEveryone } =
+        deletionData;
+      const currentUserId = useAuthStore.getState().authUser._id;
+
+      console.log("🗑️ Received deletion event:", {
+        messageId,
+        deleteType,
+        deletedBy,
+        deletedForEveryone,
+        currentUser: currentUserId,
       });
+
+      // Always remove from UI if:
+      // 1. Message was deleted for everyone, OR
+      // 2. Current user is the one who deleted it (for any delete type)
+      const shouldRemoveFromUI =
+        deletedForEveryone || deletedBy === currentUserId;
+
+      if (shouldRemoveFromUI) {
+        console.log("🗑️ Removing message from UI:", messageId);
+        set({
+          messages: get().messages.filter(
+            (message) => message._id !== messageId
+          ),
+        });
+      } else {
+        console.log(
+          "🗑️ Not removing message - other user deleted for themselves only"
+        );
+      }
     });
   },
 

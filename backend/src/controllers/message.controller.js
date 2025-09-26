@@ -865,13 +865,6 @@ export const deleteMessage = async (req, res) => {
         });
       }
 
-      // Check if message is already deleted for everyone
-      if (message.deletedForEveryone) {
-        return res
-          .status(400)
-          .json({ error: "Message already deleted for everyone" });
-      }
-
       // Delete for everyone
       updateResult = await Message.findByIdAndUpdate(
         messageId,
@@ -882,6 +875,25 @@ export const deleteMessage = async (req, res) => {
         { new: true }
       );
       responseMessage = "Message deleted for everyone";
+
+      // Emit to both users - message should disappear for everyone
+      const senderSocketId = getReceiverSocketId(message.senderId);
+      const receiverSocketId = getReceiverSocketId(message.receiverId);
+
+      const deletionData = {
+        messageId,
+        deleteType: "forEveryone",
+        deletedBy: userId,
+        deletedForEveryone: true,
+        timestamp: new Date(),
+      };
+
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messageDeleted", deletionData);
+      }
+      if (receiverSocketId && receiverSocketId !== senderSocketId) {
+        io.to(receiverSocketId).emit("messageDeleted", deletionData);
+      }
     } else {
       // Delete for me only
       // Check if user has already deleted this message for themselves
@@ -898,28 +910,21 @@ export const deleteMessage = async (req, res) => {
         { new: true }
       );
       responseMessage = "Message deleted for you";
-    }
 
-    // Get the other user's ID for socket emission
-    const otherUserId = isSender ? message.receiverId : message.senderId;
+      // Only emit to the user who deleted it - message should only disappear for them
+      const userSocketId = getReceiverSocketId(userId);
 
-    // Emit deletion event to both users via socket
-    const senderSocketId = getReceiverSocketId(message.senderId);
-    const receiverSocketId = getReceiverSocketId(message.receiverId);
+      const deletionData = {
+        messageId,
+        deleteType: "forMe",
+        deletedBy: userId,
+        deletedForEveryone: false,
+        timestamp: new Date(),
+      };
 
-    const deletionData = {
-      messageId,
-      deleteType,
-      deletedBy: userId,
-      deletedForEveryone: deleteType === "forEveryone",
-      timestamp: new Date(),
-    };
-
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("messageDeleted", deletionData);
-    }
-    if (receiverSocketId && receiverSocketId !== senderSocketId) {
-      io.to(receiverSocketId).emit("messageDeleted", deletionData);
+      if (userSocketId) {
+        io.to(userSocketId).emit("messageDeleted", deletionData);
+      }
     }
 
     res.status(200).json({
@@ -991,18 +996,6 @@ export const deleteMessages = async (req, res) => {
         });
       }
 
-      // Check for messages already deleted for everyone
-      const alreadyDeletedForEveryone = senderMessages.filter(
-        (message) => message.deletedForEveryone
-      );
-
-      if (alreadyDeletedForEveryone.length > 0) {
-        return res.status(400).json({
-          error: "Some messages are already deleted for everyone",
-          alreadyDeletedCount: alreadyDeletedForEveryone.length,
-        });
-      }
-
       // Bulk update to delete for everyone
       const validMessageIds = senderMessages.map((msg) => msg._id);
       updateResult = await Message.updateMany(
@@ -1014,6 +1007,30 @@ export const deleteMessages = async (req, res) => {
       );
       processedMessageIds = validMessageIds;
       responseMessage = "Messages deleted for everyone";
+
+      // Emit to all involved users - messages should disappear for everyone
+      const involvedUserIds = new Set();
+      senderMessages.forEach((message) => {
+        involvedUserIds.add(message.senderId.toString());
+        involvedUserIds.add(message.receiverId.toString());
+      });
+
+      const deletionData = processedMessageIds.map((messageId) => ({
+        messageId,
+        deleteType: "forEveryone",
+        deletedBy: userId,
+        deletedForEveryone: true,
+        timestamp: new Date(),
+      }));
+
+      involvedUserIds.forEach((userId) => {
+        const socketId = getReceiverSocketId(userId);
+        if (socketId) {
+          deletionData.forEach((data) => {
+            io.to(socketId).emit("messageDeleted", data);
+          });
+        }
+      });
     } else {
       // Delete for me only
       // Check for already deleted messages for this user
@@ -1037,33 +1054,24 @@ export const deleteMessages = async (req, res) => {
       );
       processedMessageIds = validMessageIds;
       responseMessage = "Messages deleted for you";
-    }
 
-    // Prepare socket emission data
-    const deletionData = processedMessageIds.map((messageId) => ({
-      messageId,
-      deleteType,
-      deletedBy: userId,
-      deletedForEveryone: deleteType === "forEveryone",
-      timestamp: new Date(),
-    }));
+      // Only emit to the user who deleted them - messages should only disappear for them
+      const userSocketId = getReceiverSocketId(userId);
 
-    // Get unique user IDs involved in these messages
-    const involvedUserIds = new Set();
-    messages.forEach((message) => {
-      involvedUserIds.add(message.senderId.toString());
-      involvedUserIds.add(message.receiverId.toString());
-    });
+      const deletionData = processedMessageIds.map((messageId) => ({
+        messageId,
+        deleteType: "forMe",
+        deletedBy: userId,
+        deletedForEveryone: false,
+        timestamp: new Date(),
+      }));
 
-    // Emit deletion events to all involved users
-    involvedUserIds.forEach((userId) => {
-      const socketId = getReceiverSocketId(userId);
-      if (socketId) {
+      if (userSocketId) {
         deletionData.forEach((data) => {
-          io.to(socketId).emit("messageDeleted", data);
+          io.to(userSocketId).emit("messageDeleted", data);
         });
       }
-    });
+    }
 
     res.status(200).json({
       message: responseMessage,
