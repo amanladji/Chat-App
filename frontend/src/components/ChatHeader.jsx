@@ -1,4 +1,4 @@
-import { BarChart2, X, CheckSquare, Trash2, CheckCheck } from "lucide-react";
+import { TrendingUp, X, CheckSquare, Trash2, CheckCheck } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 
@@ -99,7 +99,7 @@ const ChatHeader = ({
             className="p-2 rounded-full text-zinc-400 hover:text-violet-400 hover:bg-zinc-700/50 transition-colors"
             onClick={onOpenStats}
           >
-            <BarChart2 className="size-5" />
+            <TrendingUp className="size-5" />
           </button>
 
           <button
