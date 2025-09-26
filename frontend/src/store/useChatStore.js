@@ -169,6 +169,13 @@ export const useChatStore = create((set, get) => ({
             [senderId]: (unreadMessages[senderId] || 0) + 1,
           };
           console.log("🔴 Updating unread messages:", newUnreadMessages);
+
+          // Save to localStorage for persistence
+          localStorage.setItem(
+            "chatApp_unreadMessages",
+            JSON.stringify(newUnreadMessages)
+          );
+
           set({
             unreadMessages: newUnreadMessages,
           });
@@ -193,6 +200,13 @@ export const useChatStore = create((set, get) => ({
       const newUnreadMessages = { ...unreadMessages };
       delete newUnreadMessages[userId];
       console.log("📋 Updated unread messages:", newUnreadMessages);
+
+      // Save to localStorage for persistence
+      localStorage.setItem(
+        "chatApp_unreadMessages",
+        JSON.stringify(newUnreadMessages)
+      );
+
       set({ unreadMessages: newUnreadMessages });
     }
   },
@@ -206,8 +220,26 @@ export const useChatStore = create((set, get) => ({
 
   initializeUnreadCounts: async () => {
     console.log("🚀 Initializing unread counts");
-    // This could be enhanced to get actual unread counts from backend
-    // For now, we'll start with empty state and track new messages
+
+    // Try to restore unread counts from localStorage
+    try {
+      const savedUnreadMessages = localStorage.getItem(
+        "chatApp_unreadMessages"
+      );
+      if (savedUnreadMessages) {
+        const parsedUnreadMessages = JSON.parse(savedUnreadMessages);
+        console.log(
+          "📱 Restored unread counts from localStorage:",
+          parsedUnreadMessages
+        );
+        set({ unreadMessages: parsedUnreadMessages });
+        return;
+      }
+    } catch (error) {
+      console.warn("Failed to restore unread counts from localStorage:", error);
+    }
+
+    // Fallback to empty state if no saved data or error
     set({ unreadMessages: {} });
   },
 }));
