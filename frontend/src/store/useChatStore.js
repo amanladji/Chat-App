@@ -12,8 +12,6 @@ export const useChatStore = create((set, get) => ({
   // --- NEW STATE FOR STATS ---
   stats: null,
   isStatsLoading: false,
-  // --- NEW STATE FOR UNREAD MESSAGES ---
-  unreadMessages: {}, // Object to track unread count per user ID
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -33,8 +31,6 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
       set({ messages: res.data });
-      // Mark messages as read when opening a chat
-      get().markMessagesAsRead(userId);
     } catch (error) {
       toast.error(error.response.data.message);
     } finally {
@@ -106,9 +102,22 @@ export const useChatStore = create((set, get) => ({
   },
 
   subscribeToMessages: () => {
+    const { selectedUser } = get();
+    if (!selectedUser) return;
+
     const socket = useAuthStore.getState().socket;
 
-    // Only subscribe to message deletion events here since newMessage is handled globally
+    socket.on("newMessage", (newMessage) => {
+      const isMessageSentFromSelectedUser =
+        newMessage.senderId === selectedUser._id;
+      if (!isMessageSentFromSelectedUser) return;
+
+      set({
+        messages: [...get().messages, newMessage],
+      });
+    });
+
+    // Subscribe to message deletion events
     socket.on("messageDeleted", (deletionData) => {
       const { messageId } = deletionData;
       // Remove the deleted message from the local state
@@ -124,65 +133,5 @@ export const useChatStore = create((set, get) => ({
     socket.off("messageDeleted"); // Unsubscribe from deletion events
   },
 
-  // Global message subscription for unread tracking
-  subscribeToAllMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    const currentUserId = useAuthStore.getState().authUser._id;
-
-    socket.on("newMessage", (newMessage) => {
-      const { selectedUser, unreadMessages } = get();
-      const isMessageFromMe = newMessage.senderId === currentUserId;
-
-      if (!isMessageFromMe) {
-        const senderId = newMessage.senderId;
-
-        if (selectedUser && selectedUser._id === senderId) {
-          // Add message to current chat if it's from the selected user
-          set({
-            messages: [...get().messages, newMessage],
-          });
-        } else {
-          // Increment unread count for other users
-          const newUnreadMessages = {
-            ...unreadMessages,
-            [senderId]: (unreadMessages[senderId] || 0) + 1,
-          };
-          console.log("Updating unread messages:", newUnreadMessages);
-          set({
-            unreadMessages: newUnreadMessages,
-          });
-        }
-      }
-    });
-  },
-
-  unsubscribeFromAllMessages: () => {
-    const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
-  },
-
   setSelectedUser: (selectedUser) => set({ selectedUser }),
-
-  // --- NEW ACTIONS FOR UNREAD MESSAGES ---
-  markMessagesAsRead: (userId) => {
-    const { unreadMessages } = get();
-    if (unreadMessages[userId]) {
-      const newUnreadMessages = { ...unreadMessages };
-      delete newUnreadMessages[userId];
-      set({ unreadMessages: newUnreadMessages });
-    }
-  },
-
-  getUnreadCount: (userId) => {
-    const { unreadMessages } = get();
-    const count = unreadMessages[userId] || 0;
-    console.log(`Unread count for user ${userId}:`, count);
-    return count;
-  },
-
-  initializeUnreadCounts: async () => {
-    // This could be enhanced to get actual unread counts from backend
-    // For now, we'll start with empty state and track new messages
-    set({ unreadMessages: {} });
-  },
 }));

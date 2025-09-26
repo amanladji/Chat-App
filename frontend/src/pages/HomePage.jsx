@@ -1,20 +1,11 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect } from "react";
 
 import Sidebar from "../components/Sidebar";
 import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
 
 const HomePage = () => {
-  const { selectedUser, subscribeToAllMessages, unsubscribeFromAllMessages } =
-    useChatStore();
-
-  // Subscribe to all messages globally for unread tracking
-  useEffect(() => {
-    subscribeToAllMessages();
-
-    return () => unsubscribeFromAllMessages();
-  }, [subscribeToAllMessages, unsubscribeFromAllMessages]);
+  const { selectedUser } = useChatStore();
 
   return (
     <div className="h-screen bg-gradient-to-b from-[#3c334b] to-[#2a2336] pt-16">
