@@ -312,19 +312,40 @@ const ChatContainer = () => {
   ]);
 
   useEffect(() => {
-    // Only scroll when new messages are truly added (count increases)
+    // Scroll to bottom when messages are loaded or new messages arrive
     const currentMessageCount = messages?.length || 0;
 
-    if (
-      messageEndRef.current &&
-      currentMessageCount > prevMessageCountRef.current
-    ) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (messageEndRef.current && currentMessageCount > 0) {
+      // If this is the first time loading messages (prevMessageCountRef is 0)
+      // or if we're returning to a chat, scroll immediately to bottom
+      if (prevMessageCountRef.current === 0) {
+        // Use setTimeout to ensure DOM is fully rendered
+        setTimeout(() => {
+          if (messageEndRef.current) {
+            messageEndRef.current.scrollIntoView({ behavior: "instant" });
+          }
+        }, 100);
+      }
+      // If new messages were truly added, scroll smoothly
+      else if (currentMessageCount > prevMessageCountRef.current) {
+        messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
     }
 
     // Always update the count after checking
     prevMessageCountRef.current = currentMessageCount;
   }, [messages]);
+
+  // Additional useEffect to ensure scroll to bottom on component mount
+  useEffect(() => {
+    if (messages?.length > 0 && messageEndRef.current) {
+      setTimeout(() => {
+        if (messageEndRef.current) {
+          messageEndRef.current.scrollIntoView({ behavior: "instant" });
+        }
+      }, 200);
+    }
+  }, [messages?.length]);
 
   // Cleanup long press timer on unmount
   useEffect(() => {
