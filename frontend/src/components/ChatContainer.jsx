@@ -43,6 +43,7 @@ const ChatContainer = () => {
   const messageEndRef = useRef(null);
   const messagesContainerRef = useRef(null); // Add ref for messages container
   const prevMessageCountRef = useRef(0);
+  const shouldScrollToBottomRef = useRef(true); // Flag to force scroll to bottom
   const [selectedImage, setSelectedImage] = useState(null);
 
   // --- NEW STATE FOR STATS MODAL ---
@@ -299,6 +300,8 @@ const ChatContainer = () => {
 
     // Reset the message count ref for the new conversation
     prevMessageCountRef.current = 0;
+    // Set flag to force scroll to bottom when messages load
+    shouldScrollToBottomRef.current = true;
 
     // Cleanup subscription when component unmounts or user changes
     return () => {
@@ -316,15 +319,20 @@ const ChatContainer = () => {
     const currentMessageCount = messages?.length || 0;
 
     if (messageEndRef.current && currentMessageCount > 0) {
-      // If this is the first time loading messages (prevMessageCountRef is 0)
-      // or if we're returning to a chat, scroll immediately to bottom
-      if (prevMessageCountRef.current === 0) {
+      // If we should force scroll to bottom (initial load or returning to chat)
+      // or if this is the first time loading messages (prevMessageCountRef is 0)
+      if (
+        shouldScrollToBottomRef.current ||
+        prevMessageCountRef.current === 0
+      ) {
         // Use setTimeout to ensure DOM is fully rendered
         setTimeout(() => {
           if (messageEndRef.current) {
             messageEndRef.current.scrollIntoView({ behavior: "instant" });
           }
         }, 100);
+        // Reset the flag after scrolling
+        shouldScrollToBottomRef.current = false;
       }
       // If new messages were truly added, scroll smoothly
       else if (currentMessageCount > prevMessageCountRef.current) {
@@ -345,6 +353,29 @@ const ChatContainer = () => {
         }
       }, 200);
     }
+  }, [messages?.length]);
+
+  // Force scroll to bottom when component becomes visible again (returning from profile)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && messages?.length > 0) {
+        // Set flag to force scroll to bottom
+        shouldScrollToBottomRef.current = true;
+        // Trigger scroll
+        setTimeout(() => {
+          if (messageEndRef.current && shouldScrollToBottomRef.current) {
+            messageEndRef.current.scrollIntoView({ behavior: "instant" });
+            shouldScrollToBottomRef.current = false;
+          }
+        }, 100);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [messages?.length]);
 
   // Cleanup long press timer on unmount
