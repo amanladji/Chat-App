@@ -10,8 +10,16 @@ import RemoveFriendModal from "./RemoveFriendModal";
 import { Users, UserPlus, Bell, Search } from "lucide-react";
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } =
-    useChatStore();
+  const {
+    getUsers,
+    users,
+    selectedUser,
+    setSelectedUser,
+    isUsersLoading,
+    getUnreadCount,
+    markMessagesAsRead,
+    initializeUnreadCounts,
+  } = useChatStore();
   const { pendingRequests, getPendingRequests } = useFriendStore();
   const { onlineUsers } = useAuthStore();
 
@@ -31,7 +39,8 @@ const Sidebar = () => {
   useEffect(() => {
     getUsers();
     getPendingRequests();
-  }, [getUsers, getPendingRequests]);
+    initializeUnreadCounts();
+  }, [getUsers, getPendingRequests, initializeUnreadCounts]);
 
   // Cleanup long press timer on unmount
   useEffect(() => {
@@ -182,6 +191,7 @@ const Sidebar = () => {
                 setLongPressTimer(null);
               }
               setSelectedUser(user);
+              markMessagesAsRead(user._id);
             }}
             onContextMenu={(e) => handleContactRightClick(e, user)}
             onTouchStart={(e) => {
@@ -218,15 +228,30 @@ const Sidebar = () => {
                   rounded-full ring-2 ring-[#2a2434]"
                 />
               )}
+              {/* Unread message indicator for mobile */}
+              {getUnreadCount(user._id) > 0 && (
+                <span className="absolute -top-1 -right-1 bg-violet-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center lg:hidden">
+                  {getUnreadCount(user._id) > 9
+                    ? "9+"
+                    : getUnreadCount(user._id)}
+                </span>
+              )}
             </div>
 
             {/* User info - only visible on larger screens */}
-            <div className="hidden lg:block text-left min-w-0">
+            <div className="hidden lg:block text-left min-w-0 flex-1">
               <div className="font-medium truncate text-zinc-100">
                 {user.fullName}
               </div>
-              <div className="text-sm text-zinc-400">
-                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+              <div className="text-sm text-zinc-400 flex items-center justify-between">
+                <span>
+                  {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                </span>
+                {getUnreadCount(user._id) > 0 && (
+                  <span className="bg-violet-500 text-white text-xs rounded-full px-2 py-0.5 ml-2 min-w-[20px] text-center">
+                    {getUnreadCount(user._id)}
+                  </span>
+                )}
               </div>
             </div>
           </button>
