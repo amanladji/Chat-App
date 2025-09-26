@@ -9,6 +9,7 @@ import SentimentLineGraph from "./SentimentLineGraph"; // Import the sentiment l
 import MessageContextMenu from "./MessageContextMenu";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import BulkDeleteConfirmModal from "./BulkDeleteConfirmModal";
+import { ChevronDown } from "lucide-react"; // Add ChevronDown import
 
 // Helper function to get the correct color class
 const getSentimentColorClass = (sentiment) => {
@@ -37,11 +38,15 @@ const ChatContainer = () => {
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const messagesContainerRef = useRef(null); // Add ref for messages container
   const prevMessageCountRef = useRef(0);
   const [selectedImage, setSelectedImage] = useState(null);
 
   // --- NEW STATE FOR STATS MODAL ---
   const [showStatsModal, setShowStatsModal] = useState(false);
+
+  // --- SCROLL TO BOTTOM BUTTON STATE ---
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // --- NEW STATE FOR CONTEXT MENU ---
   const [contextMenu, setContextMenu] = useState({
@@ -327,6 +332,30 @@ const ChatContainer = () => {
     };
   }, [longPressTimer]);
 
+  // Handle scroll detection for showing/hiding jump to bottom button
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // Show button if user is not near the bottom (100px threshold)
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    // Initial check
+    handleScroll();
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [messages]); // Add messages dependency to re-run when messages change
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   if (isMessagesLoading) {
     // ... (no changes here)
     return (
@@ -350,7 +379,10 @@ const ChatContainer = () => {
         onDeleteSelected={handleDeleteSelectedMessages}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+      >
         {/* Multi-select mode indicator - positioned as overlay */}
         {isMultiSelectMode && (
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-30 bg-[#3b3346]/95 border border-violet-400/30 rounded-lg px-4 py-2 backdrop-blur-sm shadow-lg">
@@ -534,6 +566,19 @@ const ChatContainer = () => {
         {/* Invisible element to maintain scroll position */}
         <div ref={messageEndRef} />
       </div>
+
+      {/* Jump to Bottom Button */}
+      {showScrollButton && (
+        <div className="relative">
+          <button
+            onClick={scrollToBottom}
+            className="absolute right-4 -top-16 bg-violet-500/90 hover:bg-violet-600 text-white p-3 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 z-10 border border-violet-400/20"
+            title="Jump to latest messages"
+          >
+            <ChevronDown className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       <MessageInput />
 
