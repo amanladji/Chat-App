@@ -5,7 +5,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import SentimentStats from "./SentimentStats"; // Import the new component
+import SentimentLineGraph from "./SentimentLineGraph"; // Import the sentiment line graph directly
 import MessageContextMenu from "./MessageContextMenu";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import BulkDeleteConfirmModal from "./BulkDeleteConfirmModal";
@@ -557,9 +557,13 @@ const ChatContainer = () => {
         </div>
       )}
 
-      {/* --- NEW STATS MODAL RENDER --- */}
+      {/* --- SENTIMENT ANALYSIS GRAPH MODAL --- */}
       {showStatsModal && (
-        <SentimentStats isOpen={showStatsModal} onClose={() => setShowStatsModal(false)} />
+        <SentimentLineGraph 
+          isOpen={showStatsModal} 
+          onClose={() => setShowStatsModal(false)}
+          onBack={() => setShowStatsModal(false)}
+        />
       )}
 
       {/* Context Menu */}

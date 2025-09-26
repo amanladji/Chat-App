@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,10 +25,87 @@ ChartJS.register(
   Legend
 );
 
-const SentimentLineGraph = ({ isOpen, onClose, onBack }) => {
-  const { messages, users, selectedUser } = useChatStore();
+const SENTIMENT_CONFIG = {
+  POSITIVE: { emoji: "😊", color: "text-[#0CCA98]", label: "Positive" },
+  NEGATIVE: { emoji: "😠", color: "text-red-500", label: "Negative" },
+  NEUTRAL: { emoji: "😐", color: "text-[#8B7FB8]", label: "Neutral" },
+  HELP: { emoji: "🤔", color: "text-blue-400", label: "Help" },
+};
+
+const StatCard = ({ title, stats }) => {
+  const total = Object.values(stats || {}).reduce((sum, count) => sum + count, 0);
+
+  return (
+    <div className='bg-[#2a2434]/50 rounded-xl p-4 border border-white/5 flex-1'>
+      <h3 className='text-lg font-semibold text-white mb-4'>{title}</h3>
+      {total === 0 ? (
+        <p className='text-sm text-zinc-400'>No messages to analyze.</p>
+      ) : (
+        <div className='space-y-3'>
+          {Object.entries(SENTIMENT_CONFIG).map(([sentiment, config]) =>
+            stats && stats[sentiment] ? (
+              <div key={sentiment} className='flex justify-between items-center'>
+                <span className={`flex items-center gap-2 font-medium ${config.color}`}>
+                  {config.emoji} {config.label}
+                </span>
+                <span className='font-mono font-bold text-white'>{stats[sentiment]}</span>
+              </div>
+            ) : null
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ConversationStatsSection = ({ selectedUser, messageLimit }) => {
+  const { getSentimentStats, stats, isStatsLoading } = useChatStore();
+  
+  // Fetch stats when component mounts or selectedUser changes
+  useEffect(() => {
+    if (selectedUser) {
+      getSentimentStats(selectedUser._id);
+    }
+  }, [selectedUser, getSentimentStats, messageLimit]);
+
+  if (isStatsLoading) {
+    return (
+      <div className="border-t border-white/10 pt-6">
+        <div className="text-center text-zinc-400">Loading conversation statistics...</div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return null;
+  }
+
+  return (
+    <div className="border-t border-white/10 pt-6">
+      <div className="mb-6 text-center">
+        <h3 className="text-lg font-semibold text-white">
+          Conversation Sentiment Statistics - Detailed breakdown of sentiment analysis for last {messageLimit} messages
+        </h3>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <StatCard 
+          title={`Your Messages to ${selectedUser?.fullName?.split(" ")[0] || selectedUser?.fullName}`} 
+          stats={stats.myStats} 
+        />
+        <StatCard 
+          title={`${selectedUser?.fullName?.split(" ")[0] || selectedUser?.fullName}'s Messages to You`} 
+          stats={stats.theirStats} 
+        />
+      </div>
+    </div>
+  );
+};
+
+const SentimentLineGraph = ({ isOpen, onClose, onBack, initialMessageLimit = '25' }) => {
+  const { messages, users, selectedUser, getSentimentStats, stats, isStatsLoading } = useChatStore();
   const { authUser } = useAuthStore();
-  const [messageLimit, setMessageLimit] = useState('25');
+  const [messageLimit, setMessageLimit] = useState(initialMessageLimit);
 
   const getSentimentScore = (sentiment) => {
     switch (sentiment?.toLowerCase()) {
@@ -272,27 +349,19 @@ const SentimentLineGraph = ({ isOpen, onClose, onBack }) => {
               <p className="text-sm text-zinc-400">Overall sentiment trends with {selectedUser?.fullName}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="p-6 pb-8 space-y-8">
-          {/* Message Limit Controls */}
-          <div className="flex justify-center">
+          
+          {/* Message Limit Controls in Header */}
+          <div className="flex items-center gap-3">
             <div className="flex rounded-lg bg-[#2a2434] p-1 border border-white/10">
               {[
-                { value: '25', label: '25 msgs' },
-                { value: '50', label: '50 msgs' },
-                { value: '100', label: '100 msgs' }
+                { value: '25', label: '25' },
+                { value: '50', label: '50' },
+                { value: '100', label: '100' }
               ].map(option => (
                 <button
                   key={option.value}
                   onClick={() => setMessageLimit(option.value)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                     messageLimit === option.value
                       ? 'bg-violet-500 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
@@ -302,8 +371,17 @@ const SentimentLineGraph = ({ isOpen, onClose, onBack }) => {
                 </button>
               ))}
             </div>
+            <span className="text-xs text-zinc-500">msgs</span>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-colors ml-2"
+            >
+              ✕
+            </button>
           </div>
+        </div>
 
+        <div className="p-6 pb-8 space-y-8">
           {/* Overall Statistics Cards */}
           {overallStats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -445,6 +523,9 @@ const SentimentLineGraph = ({ isOpen, onClose, onBack }) => {
               </div>
             </div>
           )}
+
+          {/* Conversation Sentiment Analysis Statistics */}
+          <ConversationStatsSection selectedUser={selectedUser} messageLimit={messageLimit} />
         </div>
       </div>
     </div>
