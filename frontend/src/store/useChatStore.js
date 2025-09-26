@@ -129,15 +129,36 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     const currentUserId = useAuthStore.getState().authUser._id;
 
+    console.log("🔄 Setting up global message subscription");
+    console.log("🔌 Socket available:", !!socket);
+    console.log("👤 Current user:", currentUserId);
+
+    if (!socket) {
+      console.error("❌ No socket connection available");
+      return;
+    }
+
+    // Remove any existing listeners first to prevent duplicates
+    socket.off("newMessage");
+
     socket.on("newMessage", (newMessage) => {
+      console.log("📨 Received new message:", newMessage);
       const { selectedUser, unreadMessages } = get();
       const isMessageFromMe = newMessage.senderId === currentUserId;
+
+      console.log("📝 Message details:", {
+        from: newMessage.senderId,
+        currentUser: currentUserId,
+        selectedUser: selectedUser?._id,
+        isFromMe: isMessageFromMe,
+      });
 
       if (!isMessageFromMe) {
         const senderId = newMessage.senderId;
 
         if (selectedUser && selectedUser._id === senderId) {
           // Add message to current chat if it's from the selected user
+          console.log("💬 Adding message to current chat");
           set({
             messages: [...get().messages, newMessage],
           });
@@ -147,7 +168,7 @@ export const useChatStore = create((set, get) => ({
             ...unreadMessages,
             [senderId]: (unreadMessages[senderId] || 0) + 1,
           };
-          console.log("Updating unread messages:", newUnreadMessages);
+          console.log("🔴 Updating unread messages:", newUnreadMessages);
           set({
             unreadMessages: newUnreadMessages,
           });
@@ -157,6 +178,7 @@ export const useChatStore = create((set, get) => ({
   },
 
   unsubscribeFromAllMessages: () => {
+    console.log("🛑 Unsubscribing from global messages");
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
   },
@@ -165,10 +187,12 @@ export const useChatStore = create((set, get) => ({
 
   // --- NEW ACTIONS FOR UNREAD MESSAGES ---
   markMessagesAsRead: (userId) => {
+    console.log("✅ Marking messages as read for user:", userId);
     const { unreadMessages } = get();
     if (unreadMessages[userId]) {
       const newUnreadMessages = { ...unreadMessages };
       delete newUnreadMessages[userId];
+      console.log("📋 Updated unread messages:", newUnreadMessages);
       set({ unreadMessages: newUnreadMessages });
     }
   },
@@ -181,6 +205,7 @@ export const useChatStore = create((set, get) => ({
   },
 
   initializeUnreadCounts: async () => {
+    console.log("🚀 Initializing unread counts");
     // This could be enhanced to get actual unread counts from backend
     // For now, we'll start with empty state and track new messages
     set({ unreadMessages: {} });

@@ -30,8 +30,6 @@ const ChatContainer = () => {
     getMessages,
     isMessagesLoading,
     selectedUser,
-    subscribeToMessages,
-    unsubscribeFromMessages,
     deleteMessage, // Add deleteMessage to destructured values
     deleteMessages, // Add bulk delete function
   } = useChatStore();
@@ -274,19 +272,13 @@ const ChatContainer = () => {
 
   useEffect(() => {
     getMessages(selectedUser._id);
-    subscribeToMessages();
 
     // Clear multi-select state when changing users
     setIsMultiSelectMode(false);
     setSelectedMessages(new Set());
 
-    return () => unsubscribeFromMessages();
-  }, [
-    selectedUser._id,
-    getMessages,
-    subscribeToMessages,
-    unsubscribeFromMessages,
-  ]);
+    // No need to return cleanup since we're not subscribing here anymore
+  }, [selectedUser._id, getMessages]);
 
   useEffect(() => {
     if (messageEndRef.current && messages) {
