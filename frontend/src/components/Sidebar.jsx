@@ -114,9 +114,9 @@ const Sidebar = () => {
 
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-[#3b3346] bg-[#2a2434] flex flex-col transition-none text-zinc-100 flex-shrink-0">
-      <div className="border-b border-[#3b3346] w-full p-5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+      <div className="border-b border-[#3b3346] w-full p-2 lg:p-5">
+        <div className="flex flex-col lg:flex-row items-center lg:justify-between gap-2">
+          <div className="flex items-center gap-2 lg:mb-0">
             <Users className="size-6 text-violet-400" />
             <span className="font-medium hidden lg:block text-zinc-100">
               Contacts
@@ -124,10 +124,10 @@ const Sidebar = () => {
           </div>
 
           {/* Friend management buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col lg:flex-row items-center gap-2 w-full lg:w-auto">
             <button
               onClick={() => setShowRequestsModal(true)}
-              className="relative btn btn-sm bg-[#3b3346] hover:bg-[#4a4357] border-[#3b3346] text-zinc-300 hover:text-zinc-100"
+              className="relative btn btn-sm bg-[#3b3346] hover:bg-[#4a4357] border-[#3b3346] text-zinc-300 hover:text-zinc-100 w-full lg:w-auto"
               title="Friend Requests"
             >
               <Bell className="size-4" />
@@ -140,7 +140,7 @@ const Sidebar = () => {
 
             <button
               onClick={() => setShowAddFriendModal(true)}
-              className="btn btn-sm bg-violet-500 hover:bg-violet-400 border-violet-500 text-white"
+              className="btn btn-sm bg-violet-500 hover:bg-violet-400 border-violet-500 text-white w-full lg:w-auto"
               title="Add Friend"
             >
               <UserPlus className="size-4" />
