@@ -24,4 +24,10 @@ dist-ssr
 *.sw?
 
 .env
+.env*
+*.enc
+backend/.env
+backend/realtime-chat-app-472214-ac22caca0767.json
 realtime-chat-app-472214-ac22caca0767.json
+frontend/.env
+frontend/.env*
