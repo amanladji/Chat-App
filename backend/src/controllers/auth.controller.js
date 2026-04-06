@@ -3,6 +3,17 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 
+const isDatabaseUnavailableError = (error) => {
+  const message = error?.message || "";
+  return (
+    message.includes("buffering timed out") ||
+    message.includes("MongoNotConnectedError") ||
+    message.includes("ECONNREFUSED") ||
+    message.includes("authentication failed") ||
+    message.includes("bad auth")
+  );
+};
+
 export const signup = async (req, res) => {
   const { fullName, email, password, remember } = req.body;
   try {
@@ -45,6 +56,9 @@ export const signup = async (req, res) => {
     }
   } catch (error) {
     console.log("Error in signup controller", error.message);
+    if (isDatabaseUnavailableError(error)) {
+      return res.status(503).json({ message: "Database unavailable" });
+    }
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -73,6 +87,9 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.log("Error in login controller", error.message);
+    if (isDatabaseUnavailableError(error)) {
+      return res.status(503).json({ message: "Database unavailable" });
+    }
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

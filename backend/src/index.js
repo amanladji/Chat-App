@@ -58,7 +58,18 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-server.listen(process.env.PORT, () => {
-  connectDB();
-  console.log(`server is running on PORT:${process.env.PORT}`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+
+    const port = process.env.PORT || 5001;
+    server.listen(port, () => {
+      console.log(`server is running on PORT:${port}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
